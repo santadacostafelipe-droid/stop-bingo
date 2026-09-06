@@ -1,0 +1,1131 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Stop & Bingo</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Roboto, system-ui, sans-serif;
+            background: linear-gradient(145deg, #0b0e1a, #1a1f33);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 16px;
+            color: #fff;
+        }
+        .app {
+            width: 100%;
+            max-width: 1200px;
+        }
+        /* Menu inicial */
+        .tela {
+            display: none;
+            animation: fadeIn 0.4s ease-out;
+        }
+        .tela.ativa {
+            display: block;
+        }
+        @keyframes fadeIn {
+            0% {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        /* cards */
+        .cards {
+            display: flex;
+            gap: 30px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin: 30px 0;
+        }
+        .card {
+            background: rgba(255, 255, 255, 0.04);
+            border: 2px solid rgba(255, 255, 255, 0.06);
+            border-radius: 40px;
+            padding: 40px 30px;
+            width: 260px;
+            cursor: pointer;
+            transition: 0.3s;
+            text-align: center;
+        }
+        .card:hover {
+            transform: translateY(-8px);
+            border-color: #e94560;
+            box-shadow: 0 20px 40px rgba(233, 69, 96, 0.2);
+        }
+        .card .icon {
+            font-size: 64px;
+        }
+        .card h2 {
+            font-size: 28px;
+            margin-top: 10px;
+        }
+        /* Configuração */
+        .config-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            background: rgba(255, 255, 255, 0.04);
+            border-radius: 32px;
+            padding: 24px;
+        }
+        .config-card {
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 24px;
+            padding: 20px;
+        }
+        .config-card h3 {
+            margin-bottom: 12px;
+        }
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+        .input-group input {
+            flex: 1;
+            padding: 10px 16px;
+            border-radius: 40px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.06);
+            color: #fff;
+            outline: none;
+        }
+        .input-group button {
+            background: #e94560;
+            border: none;
+            color: #fff;
+            padding: 0 24px;
+            border-radius: 40px;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 4px 0 #9c2a3f;
+        }
+        .lista-jogadores {
+            max-height: 180px;
+            overflow-y: auto;
+        }
+        .lista-jogadores .item {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 12px;
+            background: rgba(255, 255, 255, 0.04);
+            border-radius: 40px;
+            margin-bottom: 4px;
+        }
+        .lista-jogadores .item .remove {
+            background: none;
+            border: none;
+            color: rgba(255, 255, 255, 0.3);
+            cursor: pointer;
+        }
+        .btn-iniciar {
+            background: #4ecdc4;
+            border: none;
+            color: #1a1f33;
+            font-weight: 700;
+            padding: 14px 40px;
+            border-radius: 60px;
+            font-size: 22px;
+            cursor: pointer;
+            box-shadow: 0 6px 0 #2a7a73;
+            margin-top: 20px;
+        }
+        /* Jogo */
+        .jogo-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+        .coluna-roleta {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .canvas-wrapper {
+            border-radius: 50%;
+            box-shadow: 0 0 0 6px #e94560;
+            background: #111;
+            padding: 8px;
+            max-width: 400px;
+            width: 100%;
+        }
+        canvas {
+            width: 100%;
+            height: auto;
+            aspect-ratio: 1/1;
+            border-radius: 50%;
+            background: #fff;
+        }
+        .info-rodada {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.35);
+            padding: 10px 20px;
+            border-radius: 60px;
+            margin: 16px 0;
+            width: 100%;
+        }
+        .info-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 20px;
+        }
+        .info-item .valor {
+            background: #e94560;
+            padding: 0 16px;
+            border-radius: 40px;
+            font-weight: 800;
+            font-size: 28px;
+        }
+        .info-item .tema-valor {
+            background: #f4a261;
+            color: #1a1f33;
+            padding: 0 16px;
+            border-radius: 40px;
+            font-weight: 700;
+            font-size: 22px;
+        }
+        .btn-girar {
+            background: #e94560;
+            border: none;
+            color: #fff;
+            padding: 12px 36px;
+            border-radius: 60px;
+            font-size: 20px;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 6px 0 #9c2a3f;
+        }
+        .coluna-admin {
+            background: rgba(255, 255, 255, 0.04);
+            border-radius: 32px;
+            padding: 20px;
+        }
+        .coluna-admin h3 {
+            margin-bottom: 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            padding-bottom: 12px;
+        }
+        .admin-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .admin-controls .linha {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+        }
+        .admin-controls select,
+        .admin-controls input {
+            flex: 1;
+            padding: 8px 16px;
+            border-radius: 40px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.06);
+            color: #fff;
+            outline: none;
+        }
+        .btn-admin {
+            background: #f4a261;
+            border: none;
+            color: #1a1f33;
+            font-weight: 700;
+            padding: 8px 20px;
+            border-radius: 40px;
+            cursor: pointer;
+            box-shadow: 0 4px 0 #b36b3a;
+        }
+        .btn-admin.danger {
+            background: #e63946;
+            color: #fff;
+            box-shadow: 0 4px 0 #9c2a3f;
+        }
+        .btn-admin.success {
+            background: #4ecdc4;
+            color: #1a1f33;
+            box-shadow: 0 4px 0 #2a7a73;
+        }
+        .status-box {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 16px;
+            padding: 12px;
+            margin-top: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-size: 14px;
+        }
+        .status-box .linha-status {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+        }
+        .status-box .destaque {
+            color: #4ecdc4;
+        }
+
+        /* Modo jogador (mobile) */
+        .modo-jogador {
+            display: none;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 32px;
+            padding: 20px;
+            margin-top: 16px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+        }
+        .modo-jogador .letra-grande {
+            font-size: 72px;
+            font-weight: 900;
+            color: #e94560;
+            text-shadow: 0 0 40px rgba(233, 69, 96, 0.3);
+        }
+        .modo-jogador .tema-grande {
+            font-size: 28px;
+            font-weight: 700;
+            color: #f4a261;
+            background: rgba(244, 162, 97, 0.1);
+            padding: 2px 24px;
+            border-radius: 40px;
+            display: inline-block;
+            margin-top: 6px;
+        }
+        .modo-jogador .botoes-pontos {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin: 12px 0;
+        }
+        .modo-jogador .botoes-pontos button {
+            background: rgba(255, 255, 255, 0.06);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            color: #fff;
+            padding: 10px 20px;
+            border-radius: 40px;
+            font-size: 20px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .modo-jogador .botoes-pontos button.selecionado {
+            background: #e94560;
+            border-color: #e94560;
+        }
+        .modo-jogador .input-palavra {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin: 12px 0;
+        }
+        .modo-jogador .input-palavra input {
+            flex: 1;
+            max-width: 280px;
+            padding: 10px 18px;
+            border-radius: 40px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.06);
+            color: #fff;
+            font-size: 18px;
+            outline: none;
+        }
+        .modo-jogador .input-palavra button {
+            background: #4ecdc4;
+            border: none;
+            color: #1a1f33;
+            font-weight: 700;
+            padding: 0 28px;
+            border-radius: 40px;
+            font-size: 18px;
+            cursor: pointer;
+            box-shadow: 0 4px 0 #2a7a73;
+        }
+        .modo-jogador .btn-bingo {
+            background: #ffd700;
+            border: none;
+            color: #1a1f33;
+            font-weight: 900;
+            padding: 14px 40px;
+            border-radius: 60px;
+            font-size: 28px;
+            cursor: pointer;
+            box-shadow: 0 6px 0 #b8960f;
+            margin-top: 10px;
+        }
+        .modo-jogador .cartela-jogador {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            max-width: 240px;
+            margin: 10px auto;
+        }
+        .modo-jogador .cartela-jogador .celula {
+            background: rgba(255, 255, 255, 0.06);
+            border-radius: 12px;
+            padding: 12px 0;
+            font-size: 24px;
+            font-weight: 700;
+            cursor: pointer;
+            border: 2px solid transparent;
+        }
+        .modo-jogador .cartela-jogador .celula.marcada {
+            background: #4ecdc4;
+            border-color: #4ecdc4;
+        }
+
+        /* Pódio */
+        .podium-lista {
+            list-style: none;
+            max-width: 500px;
+            margin: 20px auto;
+        }
+        .podium-lista li {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 60px;
+            margin-bottom: 8px;
+            border-left: 6px solid #e94560;
+            font-size: 20px;
+        }
+        .podium-lista li:nth-child(1) {
+            border-left-color: #ffd700;
+            background: rgba(255, 215, 0, 0.12);
+        }
+        .podium-lista li:nth-child(2) {
+            border-left-color: #c0c0c0;
+            background: rgba(192, 192, 192, 0.08);
+        }
+        .podium-lista li:nth-child(3) {
+            border-left-color: #cd7f32;
+            background: rgba(205, 127, 50, 0.08);
+        }
+
+        /* Responsivo */
+        @media (max-width: 768px) {
+            .config-grid {
+                grid-template-columns: 1fr;
+            }
+            .jogo-grid {
+                grid-template-columns: 1fr;
+            }
+            .modo-jogador {
+                display: block;
+            }
+            .coluna-admin {
+                order: 2;
+            }
+            .coluna-roleta {
+                order: 1;
+            }
+        }
+        .hidden {
+            display: none !important;
+        }
+        .flex-center {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .mt-16 {
+            margin-top: 16px;
+        }
+        .mb-12 {
+            margin-bottom: 12px;
+        }
+        .text-center {
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="app" id="app">
+        <!-- ======= TELA INICIAL ======= -->
+        <div id="telaInicial" class="tela ativa">
+            <h1 style="font-size:48px; text-align:center; background:linear-gradient(135deg,#e94560,#f4a261); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">🎲 Stop & Bingo</h1>
+            <p style="text-align:center; color:rgba(255,255,255,0.6); font-size:20px;">Escolha o jogo e divirta-se!</p>
+            <div class="cards">
+                <div class="card" data-jogo="stop">
+                    <div class="icon">🛑</div>
+                    <h2>Stop</h2>
+                    <p style="color:rgba(255,255,255,0.4);">Gire, marque pontos por tema e veja o pódio</p>
+                </div>
+                <div class="card" data-jogo="bingo">
+                    <div class="icon">🎰</div>
+                    <h2>Bingo</h2>
+                    <p style="color:rgba(255,255,255,0.4);">Complete sua cartela com as palavras certas</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ======= TELA DE CONFIGURAÇÃO ======= -->
+        <div id="telaConfig" class="tela">
+            <h2 id="configTitulo" style="text-align:center; font-size:32px;">⚙️ Configurar</h2>
+            <div class="config-grid">
+                <div class="config-card">
+                    <h3>👥 Jogadores</h3>
+                    <div class="input-group">
+                        <input type="text" id="inputNome" placeholder="Nome" />
+                        <button id="btnAddJogador">+</button>
+                    </div>
+                    <div class="lista-jogadores" id="listaJogadoresConfig"></div>
+                </div>
+                <div class="config-card" id="configEspecifica">
+                    <h3 id="configEspecificaTitulo">📂 Configurações</h3>
+                    <div id="configEspecificaConteudo"></div>
+                </div>
+            </div>
+            <div class="flex-center mt-16">
+                <button class="btn-iniciar" id="btnIniciarJogo">🚀 Iniciar Jogo</button>
+            </div>
+        </div>
+
+        <!-- ======= TELA DO JOGO ======= -->
+        <div id="telaJogo" class="tela">
+            <div class="jogo-grid">
+                <!-- Coluna esquerda: roleta -->
+                <div class="coluna-roleta">
+                    <div class="canvas-wrapper">
+                        <canvas id="roletaCanvas" width="500" height="500"></canvas>
+                    </div>
+                    <div class="info-rodada">
+                        <div class="info-item">
+                            <span>🎯</span>
+                            <span class="valor" id="letraAtual">?</span>
+                        </div>
+                        <div class="info-item">
+                            <span>📂</span>
+                            <span class="tema-valor" id="temaAtual">Nenhum</span>
+                        </div>
+                        <div class="info-item">
+                            <span>⏳</span>
+                            <span class="valor" id="rodadaAtual" style="background:#f4a261;color:#1a1f33;">0</span>
+                        </div>
+                    </div>
+                    <button class="btn-girar" id="btnGirar">🔄 Girar Roleta</button>
+
+                    <!-- MODO JOGADOR (aparece apenas no mobile) -->
+                    <div class="modo-jogador" id="modoJogador">
+                        <div class="letra-grande" id="jogadorLetra">?</div>
+                        <div class="tema-grande" id="jogadorTema">Tema</div>
+                        <div id="jogadorAcoes"></div>
+                    </div>
+                </div>
+
+                <!-- Coluna direita: administrador -->
+                <div class="coluna-admin">
+                    <h3>🎮 Painel do Administrador</h3>
+                    <div class="admin-controls" id="adminControls">
+                        <!-- preenchido dinamicamente -->
+                    </div>
+                    <div class="status-box" id="statusBox">
+                        <div style="color:rgba(255,255,255,0.3); text-align:center;">Aguardando...</div>
+                    </div>
+                    <div class="flex-center mt-16">
+                        <button class="btn-admin danger" id="btnFinalizar">🏁 Finalizar</button>
+                        <button class="btn-admin" id="btnVoltarConfig">⬅ Config</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ======= PÓDIO ======= -->
+        <div id="telaPodium" class="tela">
+            <h2 style="text-align:center; font-size:40px;">🏆 Pódio</h2>
+            <ul class="podium-lista" id="podiumLista"></ul>
+            <div class="flex-center">
+                <button class="btn-admin" id="btnVoltarInicio">⬅ Voltar ao início</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ================================================================
+        // CLIENTE SOCKET
+        // ================================================================
+        const socket = io();
+        let role = 'admin'; // 'admin' ou 'player'
+        let estadoAtual = null;
+
+        // ================================================================
+        // REFERÊNCIAS DOM
+        // ================================================================
+        const $ = id => document.getElementById(id);
+        const telaInicial = $('telaInicial');
+        const telaConfig = $('telaConfig');
+        const telaJogo = $('telaJogo');
+        const telaPodium = $('telaPodium');
+        const configTitulo = $('configTitulo');
+        const configEspecifica = $('configEspecifica');
+        const configEspecificaTitulo = $('configEspecificaTitulo');
+        const configEspecificaConteudo = $('configEspecificaConteudo');
+        const inputNome = $('inputNome');
+        const btnAddJogador = $('btnAddJogador');
+        const listaJogadoresConfig = $('listaJogadoresConfig');
+        const btnIniciarJogo = $('btnIniciarJogo');
+        const canvas = $('roletaCanvas');
+        const ctx = canvas.getContext('2d');
+        const letraAtualEl = $('letraAtual');
+        const temaAtualEl = $('temaAtual');
+        const rodadaAtualEl = $('rodadaAtual');
+        const btnGirar = $('btnGirar');
+        const adminControls = $('adminControls');
+        const statusBox = $('statusBox');
+        const btnFinalizar = $('btnFinalizar');
+        const btnVoltarConfig = $('btnVoltarConfig');
+        const jogadorLetra = $('jogadorLetra');
+        const jogadorTema = $('jogadorTema');
+        const jogadorAcoes = $('jogadorAcoes');
+        const podiumLista = $('podiumLista');
+        const btnVoltarInicio = $('btnVoltarInicio');
+
+        // ================================================================
+        // ROLETA (canvas)
+        // ================================================================
+        const W = canvas.width,
+            H = canvas.height;
+        const cx = W / 2,
+            cy = H / 2;
+        const raio = 220;
+        const letras = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+        const N = letras.length;
+        const anguloFatia = (2 * Math.PI) / N;
+        const cores = letras.map((_, i) => (i % 2 === 0) ? '#ffffff' : '#e63946');
+
+        let rotacaoAtual = 0;
+        let girando = false;
+        let animId = null;
+
+        function desenharRoleta(rotacao) {
+            ctx.clearRect(0, 0, W, H);
+            for (let i = 0; i < N; i++) {
+                const inicio = i * anguloFatia + rotacao;
+                const fim = inicio + anguloFatia;
+                ctx.beginPath();
+                ctx.moveTo(cx, cy);
+                ctx.arc(cx, cy, raio, inicio, fim);
+                ctx.closePath();
+                ctx.fillStyle = cores[i];
+                ctx.fill();
+                ctx.strokeStyle = '#222';
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+                const anguloMedio = inicio + anguloFatia / 2;
+                const distTexto = raio * 0.72;
+                const xTexto = cx + Math.cos(anguloMedio) * distTexto;
+                const yTexto = cy + Math.sin(anguloMedio) * distTexto;
+                ctx.save();
+                ctx.translate(xTexto, yTexto);
+                ctx.rotate(anguloMedio + (anguloMedio > Math.PI / 2 ? Math.PI : 0));
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillStyle = (cores[i] === '#ffffff') ? '#111' : '#fff';
+                ctx.font = 'bold 22px "Segoe UI", Arial, sans-serif';
+                ctx.shadowColor = 'rgba(0,0,0,0.3)';
+                ctx.shadowBlur = 4;
+                ctx.fillText(letras[i], 0, 0);
+                ctx.shadowBlur = 0;
+                ctx.restore();
+            }
+            // centro
+            const grad = ctx.createRadialGradient(cx, cy, 10, cx, cy, 40);
+            grad.addColorStop(0, '#f0f0f0');
+            grad.addColorStop(0.7, '#c0c0c0');
+            grad.addColorStop(1, '#888');
+            ctx.beginPath();
+            ctx.arc(cx, cy, 35, 0, 2 * Math.PI);
+            ctx.fillStyle = grad;
+            ctx.fill();
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.arc(cx, cy, 8, 0, 2 * Math.PI);
+            ctx.fillStyle = '#e94560';
+            ctx.fill();
+            // ponteiro
+            const pontaY = 15,
+                baseY = 45,
+                baseLarg = 30;
+            ctx.beginPath();
+            ctx.moveTo(cx, pontaY);
+            ctx.lineTo(cx - baseLarg / 2, baseY);
+            ctx.lineTo(cx + baseLarg / 2, baseY);
+            ctx.closePath();
+            ctx.fillStyle = '#ffd700';
+            ctx.shadowColor = 'rgba(255,215,0,0.7)';
+            ctx.shadowBlur = 15;
+            ctx.fill();
+            ctx.shadowBlur = 0;
+            ctx.strokeStyle = '#b8860b';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        }
+
+        function getLetraNoTopo(rotacao) {
+            const anguloPonteiro = -Math.PI / 2;
+            let ponteiroNormalizado = ((anguloPonteiro % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+            let indice = (ponteiroNormalizado - rotacao) / anguloFatia;
+            indice = ((indice % N) + N) % N;
+            return Math.floor(indice);
+        }
+
+        // Inicializa roleta (A no topo)
+        let rotInicial = -Math.PI / 2 - anguloFatia / 2;
+        rotInicial = ((rotInicial % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+        rotacaoAtual = rotInicial;
+        desenharRoleta(rotacaoAtual);
+
+        // ================================================================
+        // NAVEGAÇÃO ENTRE TELAS
+        // ================================================================
+        function mostrarTela(id) {
+            document.querySelectorAll('.tela').forEach(t => t.classList.remove('ativa'));
+            document.getElementById(id).classList.add('ativa');
+        }
+
+        // ================================================================
+        // EVENTOS DE CLIQUE DOS CARDS (menu inicial)
+        // ================================================================
+        document.querySelectorAll('.card').forEach(card => {
+            card.addEventListener('click', function() {
+                const jogo = this.dataset.jogo;
+                socket.emit('set_jogo', jogo); // ainda não implementado no server? vou adicionar
+                // Por enquanto, só armazenamos localmente e configuramos a tela
+                // Mas precisamos que o servidor saiba. Vou adicionar um evento no server.
+                // Como o server ainda não tem, vou fazer via estado local.
+                // Para simplificar, vamos definir o jogo no estado e enviar.
+                // Vou modificar o server para aceitar 'set_jogo'.
+                // Enquanto isso, farei localmente:
+                // Vou emitir 'set_jogo' e o server salvará.
+                socket.emit('set_jogo', jogo);
+                configTitulo.textContent = jogo === 'stop' ? '⚙️ Configurar Stop' : '⚙️ Configurar Bingo';
+                if (jogo === 'stop') {
+                    configEspecificaTitulo.textContent = '📂 Temas (8)';
+                    configEspecificaConteudo.innerHTML = `
+                        <p style="color:rgba(255,255,255,0.6);">Temas fixos: Person, Food, Place, Color, Job, Verb, Object, Animal</p>
+                        <div style="margin-top:8px;">
+                            <label style="color:rgba(255,255,255,0.5);">Tema da rodada:</label>
+                            <select id="selectTemaStop" style="width:100%; padding:8px; border-radius:40px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); color:#fff; margin-top:4px;">
+                                ${['Person','Food','Place','Color','Job','Verb','Object','Animal'].map(t => `<option value="${t}">${t}</option>`).join('')}
+                            </select>
+                        </div>
+                    `;
+                } else {
+                    configEspecificaTitulo.textContent = '📂 Tema do Bingo';
+                    configEspecificaConteudo.innerHTML = `
+                        <p style="color:rgba(255,255,255,0.6);">Escolha o tema para as palavras do Bingo.</p>
+                        <div style="margin-top:8px;">
+                            <label style="color:rgba(255,255,255,0.5);">Tema:</label>
+                            <select id="selectTemaBingo" style="width:100%; padding:8px; border-radius:40px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); color:#fff; margin-top:4px;">
+                                ${['Person','Food','Place','Color','Job','Verb','Object','Animal'].map(t => `<option value="${t}">${t}</option>`).join('')}
+                            </select>
+                        </div>
+                    `;
+                }
+                // Limpa lista de jogadores (local)
+                // Mas os jogadores devem vir do servidor. Vamos pedir o estado inicial.
+                // O servidor já envia estado_inicial na conexão.
+                // Por enquanto, vamos usar o estado local que recebemos.
+                mostrarTela('telaConfig');
+            });
+        });
+
+        // ================================================================
+        // GERENCIAMENTO DE JOGADORES (via socket)
+        // ================================================================
+        function renderizarListaJogadores(jogadores) {
+            listaJogadoresConfig.innerHTML = '';
+            if (!jogadores || jogadores.length === 0) {
+                listaJogadoresConfig.innerHTML =
+                    '<div style="color:rgba(255,255,255,0.2); text-align:center; padding:12px;">Nenhum jogador</div>';
+                return;
+            }
+            jogadores.forEach((j, idx) => {
+                const div = document.createElement('div');
+                div.className = 'item';
+                div.innerHTML = `
+                    <span>${j.nome}</span>
+                    <button class="remove" data-nome="${j.nome}">✕</button>
+                `;
+                div.querySelector('.remove').addEventListener('click', function() {
+                    socket.emit('remover_jogador', this.dataset.nome);
+                });
+                listaJogadoresConfig.appendChild(div);
+            });
+        }
+
+        btnAddJogador.addEventListener('click', function() {
+            const nome = inputNome.value.trim();
+            if (!nome) { alert('Digite um nome.'); return; }
+            socket.emit('adicionar_jogador', nome);
+            inputNome.value = '';
+        });
+
+        inputNome.addEventListener('keydown', (e) => { if (e.key === 'Enter') btnAddJogador.click(); });
+
+        // ================================================================
+        // INICIAR JOGO
+        // ================================================================
+        btnIniciarJogo.addEventListener('click', function() {
+            // Pega as configurações específicas
+            const selectTemaStop = document.getElementById('selectTemaStop');
+            const selectTemaBingo = document.getElementById('selectTemaBingo');
+            if (selectTemaStop) {
+                socket.emit('mudar_tema_stop', selectTemaStop.value);
+            }
+            if (selectTemaBingo) {
+                socket.emit('set_tema_bingo', selectTemaBingo.value);
+            }
+            // Agora o servidor já tem o estado, vamos para a tela de jogo
+            mostrarTela('telaJogo');
+            // A UI será atualizada pelo evento estado_atualizado
+        });
+
+        // ================================================================
+        // RECEBER ESTADO DO SERVIDOR
+        // ================================================================
+        socket.on('estado_inicial', (estado) => {
+            estadoAtual = estado;
+            atualizarUI(estado);
+            // Se já estiver na tela de jogo, atualiza
+            if (document.getElementById('telaJogo').classList.contains('ativa')) {
+                montarAdminControls(estado);
+                atualizarStatus(estado);
+                if (estado.jogo === 'bingo') renderizarCartelasBingo(estado);
+            }
+            renderizarListaJogadores(estado.jogadores);
+        });
+
+        socket.on('estado_atualizado', (estado) => {
+            estadoAtual = estado;
+            atualizarUI(estado);
+            if (document.getElementById('telaJogo').classList.contains('ativa')) {
+                montarAdminControls(estado);
+                atualizarStatus(estado);
+                if (estado.jogo === 'bingo') renderizarCartelasBingo(estado);
+                // Atualiza modo jogador
+                atualizarModoJogador(estado);
+            }
+            renderizarListaJogadores(estado.jogadores);
+        });
+
+        // Eventos específicos
+        socket.on('jogo_finalizado', () => {
+            // Mostra pódio
+            const ranking = [...estadoAtual.jogadores].sort((a, b) => b.pontos - a.pontos);
+            podiumLista.innerHTML = '';
+            ranking.forEach((j, i) => {
+                const li = document.createElement('li');
+                li.innerHTML = `
+                    <span>${i+1}º</span>
+                    <span>${j.nome}</span>
+                    <span>${j.pontos} pts</span>
+                `;
+                podiumLista.appendChild(li);
+            });
+            mostrarTela('telaPodium');
+            // Confetes
+            if (typeof confetti !== 'undefined') {
+                confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
+                setTimeout(() => confetti({ particleCount: 100, spread: 50, origin: { y: 0.4 } }), 300);
+            }
+        });
+
+        socket.on('bingo_valido', ({ jogador, feedback }) => {
+            alert(`🎉 BINGO VÁLIDO! ${jogador} ganhou 1 ponto.\n\n${feedback}`);
+        });
+
+        socket.on('bingo_invalido', (feedback) => {
+            alert(`❌ BINGO INVÁLIDO! Você perdeu 1 ponto.\n\n${feedback}`);
+        });
+
+        socket.on('erro_bingo', (msg) => {
+            alert(msg);
+        });
+
+        // ================================================================
+        // ATUALIZAR UI
+        // ================================================================
+        function atualizarUI(estado) {
+            letraAtualEl.textContent = estado.letraAtual || '?';
+            if (estado.jogo === 'stop') {
+                temaAtualEl.textContent = estado.temaSelecionado || 'Nenhum';
+            } else {
+                temaAtualEl.textContent = estado.temaBingo || 'Nenhum';
+            }
+            rodadaAtualEl.textContent = estado.rodada || 0;
+            // Atualiza roleta (se necessário, mas a roleta é local)
+            // Não mexe na roleta, apenas mostra a letra.
+            // Se o admin girou, o estado já tem a letra, mas a roleta não girou.
+            // Vamos girar a roleta localmente quando receber uma nova letra?
+            // A roleta é apenas visual, então podemos sincronizar a rotação.
+            // Para simplificar, não vamos sincronizar a rotação, apenas a letra.
+            // O administrador pode girar e a letra é atualizada.
+            // Mas se o jogador quiser ver a roleta girando, precisamos de animação.
+            // Vamos deixar apenas a letra.
+
+            // Atualiza modo jogador
+            atualizarModoJogador(estado);
+        }
+
+        // ================================================================
+        // MODO JOGADOR
+        // ================================================================
+        function atualizarModoJogador(estado) {
+            jogadorLetra.textContent = estado.letraAtual || '?';
+            if (estado.jogo === 'stop') {
+                jogadorTema.textContent = estado.temaSelecionado || 'Tema';
+            } else {
+                jogadorTema.textContent = estado.temaBingo || 'Tema';
+            }
+
+            // Ações do jogador
+            if (estado.jogo === 'stop') {
+                jogadorAcoes.innerHTML = `
+                    <div class="botoes-pontos">
+                        <button class="btn-ponto" data-pontos="10">10</button>
+                        <button class="btn-ponto" data-pontos="5">5</button>
+                        <button class="btn-ponto" data-pontos="0">0</button>
+                    </div>
+                    <div style="font-size:14px; color:rgba(255,255,255,0.3);">Selecione quantos pontos você fez.</div>
+                `;
+                document.querySelectorAll('.btn-ponto').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const pontos = parseInt(this.dataset.pontos);
+                        // Envia para o servidor (qual jogador? - teremos que identificar)
+                        // Para simplificar, vou usar um prompt para o jogador digitar o nome.
+                        // Mas o ideal seria cada dispositivo ter um jogador associado.
+                        // Por enquanto, vou pedir o nome.
+                        const nome = prompt('Digite seu nome:');
+                        if (!nome) return;
+                        const tema = estado.temaSelecionado;
+                        socket.emit('marcar_ponto_stop', { jogador: nome, tema, pontos });
+                        // Remove seleção
+                        document.querySelectorAll('.btn-ponto').forEach(b => b.classList.remove('selecionado'));
+                        this.classList.add('selecionado');
+                    });
+                });
+            } else { // Bingo
+                // Mostra cartela do jogador (primeiro da lista)
+                const primeiroJogador = estado.jogadores[0];
+                if (primeiroJogador) {
+                    const nome = primeiroJogador.nome;
+                    const cartela = estado.cartelasBingo[nome] || [];
+                    const marcacoes = estado.marcacoesBingo[nome] || [];
+                    let html = `<div class="cartela-jogador">`;
+                    cartela.forEach((letra, idx) => {
+                        const marcada = marcacoes[idx] ? 'marcada' : '';
+                        html += `<div class="celula ${marcada}" data-indice="${idx}">${letra}</div>`;
+                    });
+                    html += `</div>`;
+                    jogadorAcoes.innerHTML = html;
+
+                    // Eventos de clique nas células
+                    document.querySelectorAll('.celula').forEach(el => {
+                        el.addEventListener('click', function() {
+                            const indice = parseInt(this.dataset.indice);
+                            socket.emit('marcar_celula_bingo', { jogador: nome, indice });
+                        });
+                    });
+
+                    // Campo de envio de palavra
+                    const divInput = document.createElement('div');
+                    divInput.className = 'input-palavra';
+                    divInput.innerHTML = `
+                        <input type="text" id="inputPalavra" placeholder="Palavra para a letra" />
+                        <button id="btnEnviarPalavra">Enviar</button>
+                    `;
+                    jogadorAcoes.appendChild(divInput);
+
+                    document.getElementById('btnEnviarPalavra').addEventListener('click', function() {
+                        const palavra = document.getElementById('inputPalavra').value.trim();
+                        if (!palavra) { alert('Digite uma palavra.'); return; }
+                        // Pede qual letra (índice) - vamos pedir ao jogador
+                        const indice = prompt('Qual o número da célula? (0 a 8)');
+                        if (indice === null) return;
+                        const idx = parseInt(indice);
+                        if (isNaN(idx) || idx < 0 || idx > 8) { alert('Número inválido.'); return; }
+                        socket.emit('enviar_palavra_bingo', { jogador: nome, indice: idx, palavra });
+                        document.getElementById('inputPalavra').value = '';
+                    });
+
+                    // Botão BINGO
+                    const btnBingo = document.createElement('button');
+                    btnBingo.className = 'btn-bingo';
+                    btnBingo.textContent = '🎰 BINGO!';
+                    btnBingo.addEventListener('click', function() {
+                        socket.emit('validar_bingo', nome);
+                    });
+                    jogadorAcoes.appendChild(btnBingo);
+                } else {
+                    jogadorAcoes.innerHTML = '<div style="color:rgba(255,255,255,0.3);">Nenhum jogador.</div>';
+                }
+            }
+        }
+
+        // ================================================================
+        // ADMIN CONTROLS
+        // ================================================================
+        function montarAdminControls(estado) {
+            if (!estado) return;
+            if (estado.jogo === 'stop') {
+                adminControls.innerHTML = `
+                    <div class="linha">
+                        <label>Tema:</label>
+                        <select id="selectTemaAdmin">
+                            ${['Person','Food','Place','Color','Job','Verb','Object','Animal'].map(t => 
+                                `<option value="${t}" ${t === estado.temaSelecionado ? 'selected' : ''}>${t}</option>`
+                            ).join('')}
+                        </select>
+                        <button class="btn-admin" id="btnMudarTemaAdmin">Alterar</button>
+                    </div>
+                    <div class="linha">
+                        <button class="btn-admin success" id="btnProximaRodada">⏭ Próxima rodada</button>
+                        <button class="btn-admin danger" id="btnZerarPontos">🔄 Zerar</button>
+                    </div>
+                `;
+                document.getElementById('btnMudarTemaAdmin').addEventListener('click', function() {
+                    const tema = document.getElementById('selectTemaAdmin').value;
+                    socket.emit('mudar_tema_stop', tema);
+                });
+                document.getElementById('btnProximaRodada').addEventListener('click', function() {
+                    socket.emit('proxima_rodada_stop');
+                });
+                document.getElementById('btnZerarPontos').addEventListener('click', function() {
+                    if (confirm('Zerar todos os pontos?')) {
+                        socket.emit('zerar_pontos_stop');
+                    }
+                });
+            } else { // Bingo
+                adminControls.innerHTML = `
+                    <div class="linha">
+                        <label>Tema:</label>
+                        <span style="color:#f4a261; font-weight:700;">${estado.temaBingo || 'Nenhum'}</span>
+                    </div>
+                    <div class="linha">
+                        <button class="btn-admin" id="btnNovaCartela">🔄 Nova cartela para todos</button>
+                        <button class="btn-admin success" id="btnValidarBingoAdmin">✅ Validar Bingo</button>
+                    </div>
+                    <div id="cartelasContainer" style="display:flex; flex-wrap:wrap; gap:12px; justify-content:center; margin-top:12px;"></div>
+                `;
+                document.getElementById('btnNovaCartela').addEventListener('click', function() {
+                    // O servidor precisa ter uma função para gerar novas cartelas
+                    socket.emit('gerar_novas_cartelas');
+                });
+                document.getElementById('btnValidarBingoAdmin').addEventListener('click', function() {
+                    // Validação já é feita pelo jogador, mas admin pode forçar
+                    alert('O jogador deve clicar em BINGO no seu dispositivo.');
+                });
+                renderizarCartelasBingo(estado);
+            }
+        }
+
+        function renderizarCartelasBingo(estado) {
+            const container = document.getElementById('cartelasContainer');
+            if (!container) return;
+            container.innerHTML = '';
+            estado.jogadores.forEach(j => {
+                const cartela = estado.cartelasBingo[j.nome] || [];
+                const marcacoes = estado.marcacoesBingo[j.nome] || [];
+                const div = document.createElement('div');
+                div.style.background = 'rgba(255,255,255,0.04)';
+                div.style.borderRadius = '16px';
+                div.style.padding = '12px';
+                div.style.minWidth = '140px';
+                div.style.border = '1px solid rgba(255,255,255,0.06)';
+                div.innerHTML = `
+                    <div style="text-align:center; font-weight:600; margin-bottom:6px;">${j.nome}</div>
+                    <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:4px;">
+                        ${cartela.map((letra, idx) => `
+                            <div style="background:${marcacoes[idx] ? '#4ecdc4' : 'rgba(255,255,255,0.06)'}; border-radius:8px; padding:8px 0; text-align:center; font-weight:700; font-size:18px; border:${marcacoes[idx] ? '2px solid #4ecdc4' : '2px solid transparent'};">
+                                ${letra}
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        // ================================================================
+        // STATUS
+        // ================================================================
+        function atualizarStatus(estado) {
+            let html = '';
+            if (estado.jogo === 'stop') {
+                html = `<div style="font-weight:600; margin-bottom:8px;">📊 Pontuação (tema: ${estado.temaSelecionado})</div>`;
+                estado.jogadores.forEach(j => {
+                    const pts = estado.pontosStop[j.nome]?.[estado.temaSelecionado] || 0;
+                    html += `<div class="linha-status"><span>${j.nome}</span><span>${pts} pts</span></div>`;
+                });
+                html += `<div style="margin-top:8px; border-top:1px solid rgba(255,255,255,0.04); padding-top:8px; font-weight:600;">Total</div>`;
+                estado.jogadores.forEach(j => {
+                    const total = Object.values(estado.pontosStop[j.nome] || {}).reduce((a, b) => a + b, 0);
+                    html += `<div class="linha-status"><span>${j.nome}</span><span>${total} pts</span></div>`;
+                });
+            } else {
+                html = `<div style="font-weight:600;">🎰 Bingo - Tema: ${estado.temaBingo}</div>`;
+                estado.jogadores.forEach(j => {
+                    html += `<div class="linha-status"><span>${j.nome}</span><span>${j.pontos} pts</span></div>`;
+                });
+            }
+            statusBox.innerHTML = html;
+        }
+
+        // ================================================================
+        // BOTÕES GLOBAIS
+        // ================================================================
+        btnGirar.addEventListener('click', function() {
+            socket.emit('girar_roleta');
+        });
+
+        btnFinalizar.addEventListener('click', function() {
+            if (confirm('Finalizar jogo e ir para o pódio?')) {
+                socket.emit('finalizar_jogo');
+            }
+        });
+
+        btnVoltarConfig.addEventListener('click', function() {
+            if (confirm('Voltar à configuração? O progresso será perdido.')) {
+                mostrarTela('telaConfig');
+            }
+        });
+
+        btnVoltarInicio.addEventListener('click', function() {
+            mostrarTela('telaInicial');
+        });
+
+        // ================================================================
+        // ADICIONAR EVENTO SET_JOGO E OUTROS NO SERVER (não incluso, mas vou adicionar)
+        // Vou também adicionar no server os eventos que faltam.
+        // ================================================================
+        // Como o server.js já foi fornecido, vou avisar que precisa adicionar:
+        // socket.on('set_jogo', (jogo) => { estado.jogo = jogo; io.emit('estado_atualizado', estado); });
+        // socket.on('set_tema_bingo', (tema) => { estado.temaBingo = tema; io.emit('estado_atualizado', estado); });
+        // socket.on('gerar_novas_cartelas', () => { ... gerar cartelas ... });
+        // Para simplificar, vou atualizar o server.js com esses eventos.
+
+        console.log('Cliente conectado. Aguardando estado...');
+    </script>
+</body>
+</html>
