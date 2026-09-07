@@ -1,995 +1,913 @@
 <!DOCTYPE html>
-<html lang="pt">
+<html lang="pt-BR">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>Stop & Bingo</title>
-    <script src="/socket.io/socket.io.js"></script>
-    <style>
-        /* ===== RESET ===== */
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        body {
-            font-family: 'Segoe UI', Roboto, system-ui, sans-serif;
-            background: linear-gradient(145deg, #0b0e1a, #1a1f33);
-            min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 16px;
-            color: #fff;
-        }
-        .app {
-            width: 100%;
-            max-width: 1200px;
-        }
-        /* ===== TELAS ===== */
-        .tela {
-            display: none;
-            animation: fadeIn 0.3s ease-out;
-        }
-        .tela.ativa {
-            display: block;
-        }
-        @keyframes fadeIn {
-            0% { opacity: 0; transform: translateY(20px); }
-            100% { opacity: 1; transform: translateY(0); }
-        }
-        /* ===== MENU INICIAL ===== */
-        .menu-cards {
-            display: flex;
-            gap: 30px;
-            justify-content: center;
-            flex-wrap: wrap;
-            margin-top: 40px;
-        }
-        .card-jogo {
-            background: rgba(255,255,255,0.04);
-            border: 2px solid rgba(255,255,255,0.06);
-            border-radius: 40px;
-            padding: 40px 30px;
-            width: 260px;
-            text-align: center;
-            cursor: pointer;
-            transition: 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-            backdrop-filter: blur(8px);
-        }
-        .card-jogo:hover {
-            transform: translateY(-10px) scale(1.03);
-            border-color: #e94560;
-            box-shadow: 0 20px 40px rgba(233,69,96,0.2);
-        }
-        .card-jogo .icon { font-size: 64px; }
-        .card-jogo h2 { font-size: 28px; margin-top: 10px; }
-        .card-jogo p { color: rgba(255,255,255,0.5); margin-top: 8px; }
-        /* ===== CONFIGURAÇÃO ===== */
-        .config-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 24px;
-            background: rgba(255,255,255,0.04);
-            border-radius: 32px;
-            padding: 24px;
-            margin-top: 20px;
-        }
-        .config-card {
-            background: rgba(255,255,255,0.03);
-            border-radius: 24px;
-            padding: 20px;
-        }
-        .config-card h3 { margin-bottom: 12px; }
-        .input-group {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 12px;
-        }
-        .input-group input {
-            flex: 1;
-            padding: 10px 16px;
-            border-radius: 40px;
-            border: 1px solid rgba(255,255,255,0.1);
-            background: rgba(255,255,255,0.06);
-            color: #fff;
-            outline: none;
-        }
-        .input-group button {
-            background: #e94560;
-            border: none;
-            color: #fff;
-            padding: 0 24px;
-            border-radius: 40px;
-            font-weight: 700;
-            cursor: pointer;
-            box-shadow: 0 4px 0 #9c2a3f;
-        }
-        .lista-jogadores {
-            max-height: 180px;
-            overflow-y: auto;
-        }
-        .lista-jogadores .item {
-            display: flex;
-            justify-content: space-between;
-            padding: 6px 12px;
-            background: rgba(255,255,255,0.04);
-            border-radius: 40px;
-            margin-bottom: 4px;
-        }
-        .lista-jogadores .item .remove {
-            background: none;
-            border: none;
-            color: rgba(255,255,255,0.3);
-            cursor: pointer;
-        }
-        .btn-iniciar {
-            background: #4ecdc4;
-            border: none;
-            color: #1a1f33;
-            font-weight: 700;
-            padding: 14px 40px;
-            border-radius: 60px;
-            font-size: 22px;
-            cursor: pointer;
-            box-shadow: 0 6px 0 #2a7a73;
-            margin-top: 20px;
-        }
-        /* ===== JOGO ===== */
-        .jogo-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 24px;
-        }
-        .coluna-roleta {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-        .canvas-wrapper {
-            border-radius: 50%;
-            box-shadow: 0 0 0 6px #e94560;
-            background: #111;
-            padding: 8px;
-            max-width: 400px;
-            width: 100%;
-        }
-        canvas {
-            width: 100%;
-            height: auto;
-            aspect-ratio: 1/1;
-            border-radius: 50%;
-            background: #fff;
-        }
-        .info-rodada {
-            display: flex;
-            gap: 20px;
-            flex-wrap: wrap;
-            justify-content: center;
-            background: rgba(0,0,0,0.35);
-            padding: 10px 20px;
-            border-radius: 60px;
-            margin: 16px 0;
-            width: 100%;
-        }
-        .info-item {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 20px;
-        }
-        .info-item .valor {
-            background: #e94560;
-            padding: 0 16px;
-            border-radius: 40px;
-            font-weight: 800;
-            font-size: 28px;
-        }
-        .info-item .tema-valor {
-            background: #f4a261;
-            color: #1a1f33;
-            padding: 0 16px;
-            border-radius: 40px;
-            font-weight: 700;
-            font-size: 22px;
-        }
-        .btn-girar {
-            background: #e94560;
-            border: none;
-            color: #fff;
-            padding: 12px 36px;
-            border-radius: 60px;
-            font-size: 20px;
-            font-weight: 700;
-            cursor: pointer;
-            box-shadow: 0 6px 0 #9c2a3f;
-            margin: 8px 0;
-            transition: 0.08s linear;
-        }
-        .btn-girar:hover { transform: translateY(-2px); box-shadow: 0 8px 0 #9c2a3f; }
-        .btn-girar:active { transform: translateY(4px); box-shadow: 0 2px 0 #9c2a3f; }
-        .btn-girar:disabled { opacity: 0.5; transform: translateY(4px); pointer-events: none; }
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Stop & Bingo</title>
+<script src="/socket.io/socket.io.js"></script>
+<style>
+  :root{
+    --bg-1:#0d0d1a;
+    --bg-2:#1a1a2e;
+    --bg-3:#16213e;
+    --rosa:#e94560;
+    --rosa-esc:#8f2440;
+    --laranja:#f4a261;
+    --agua:#4ecdc4;
+    --dourado:#ffd700;
+    --texto:#f4f4fb;
+    --texto-fraco:#a9a9c2;
+    --vidro:rgba(255,255,255,0.06);
+    --vidro-borda:rgba(255,255,255,0.14);
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{
+    font-family:"Segoe UI", system-ui, -apple-system, sans-serif;
+    color:var(--texto);
+    min-height:100vh;
+    overflow-x:hidden;
+    position:relative;
+    background:
+      radial-gradient(circle at 12% 18%, rgba(233,69,96,0.22), transparent 42%),
+      radial-gradient(circle at 88% 82%, rgba(78,205,196,0.20), transparent 42%),
+      radial-gradient(circle at 50% 100%, rgba(255,215,0,0.08), transparent 55%),
+      linear-gradient(160deg, var(--bg-1), var(--bg-3), var(--bg-2));
+    background-size:200% 200%, 200% 200%, 200% 200%, 300% 300%;
+    animation:bgFlow 22s ease-in-out infinite;
+  }
+  @keyframes bgFlow{
+    0%{background-position:0% 0%, 100% 100%, 50% 100%, 0% 50%;}
+    50%{background-position:100% 100%, 0% 0%, 50% 0%, 100% 50%;}
+    100%{background-position:0% 0%, 100% 100%, 50% 100%, 0% 50%;}
+  }
 
-        .coluna-admin {
-            background: rgba(255,255,255,0.04);
-            border-radius: 32px;
-            padding: 20px;
-        }
-        .coluna-admin h3 { margin-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 12px; }
-        .admin-controls {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-        .admin-controls .linha {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            align-items: center;
-        }
-        .admin-controls select, .admin-controls input {
-            flex: 1;
-            padding: 8px 16px;
-            border-radius: 40px;
-            border: 1px solid rgba(255,255,255,0.1);
-            background: rgba(255,255,255,0.06);
-            color: #fff;
-            outline: none;
-        }
-        .btn-admin {
-            background: #f4a261;
-            border: none;
-            color: #1a1f33;
-            font-weight: 700;
-            padding: 8px 20px;
-            border-radius: 40px;
-            cursor: pointer;
-            box-shadow: 0 4px 0 #b36b3a;
-            transition: 0.08s linear;
-        }
-        .btn-admin:hover { transform: translateY(-2px); }
-        .btn-admin:active { transform: translateY(4px); box-shadow: 0 1px 0 #b36b3a; }
-        .btn-admin.danger { background: #e63946; color: #fff; box-shadow: 0 4px 0 #9c2a3f; }
-        .btn-admin.success { background: #4ecdc4; color: #1a1f33; box-shadow: 0 4px 0 #2a7a73; }
-        .status-box {
-            background: rgba(0,0,0,0.2);
-            border-radius: 16px;
-            padding: 12px;
-            margin-top: 12px;
-            max-height: 200px;
-            overflow-y: auto;
-            font-size: 14px;
-        }
-        .status-box .linha-status {
-            display: flex;
-            justify-content: space-between;
-            padding: 4px 0;
-            border-bottom: 1px solid rgba(255,255,255,0.04);
-        }
-        .status-box .destaque { color: #4ecdc4; }
+  /* partículas flutuantes de fundo */
+  #particulas{position:fixed; inset:0; pointer-events:none; z-index:0; overflow:hidden;}
+  .particula{
+    position:absolute; bottom:-40px; border-radius:50%;
+    background:radial-gradient(circle, rgba(255,255,255,0.5), transparent 70%);
+    animation:subir linear infinite;
+  }
+  @keyframes subir{
+    from{transform:translateY(0) translateX(0); opacity:0;}
+    10%{opacity:0.7;}
+    90%{opacity:0.5;}
+    to{transform:translateY(-115vh) translateX(var(--drift,20px)); opacity:0;}
+  }
 
-        /* ===== MODO JOGADOR (mobile) ===== */
-        .modo-jogador {
-            display: none;
-            background: rgba(255,255,255,0.03);
-            border-radius: 32px;
-            padding: 20px;
-            margin-top: 16px;
-            text-align: center;
-            border: 1px solid rgba(255,255,255,0.06);
-        }
-        .modo-jogador .letra-grande {
-            font-size: 72px;
-            font-weight: 900;
-            color: #e94560;
-            text-shadow: 0 0 40px rgba(233,69,96,0.3);
-        }
-        .modo-jogador .tema-grande {
-            font-size: 28px;
-            font-weight: 700;
-            color: #f4a261;
-            background: rgba(244,162,97,0.1);
-            padding: 2px 24px;
-            border-radius: 40px;
-            display: inline-block;
-            margin-top: 6px;
-        }
-        .modo-jogador .botoes-pontos {
-            display: flex;
-            gap: 12px;
-            justify-content: center;
-            margin: 16px 0;
-        }
-        .modo-jogador .botoes-pontos button {
-            background: rgba(255,255,255,0.06);
-            border: 2px solid rgba(255,255,255,0.1);
-            color: #fff;
-            padding: 12px 24px;
-            border-radius: 40px;
-            font-size: 24px;
-            font-weight: 700;
-            cursor: pointer;
-            transition: 0.2s;
-        }
-        .modo-jogador .botoes-pontos button.selecionado {
-            background: #e94560;
-            border-color: #e94560;
-            box-shadow: 0 0 20px rgba(233,69,96,0.3);
-        }
-        .modo-jogador .input-palavra {
-            display: flex;
-            gap: 10px;
-            justify-content: center;
-            margin: 16px 0;
-        }
-        .modo-jogador .input-palavra input {
-            flex: 1;
-            max-width: 280px;
-            padding: 10px 18px;
-            border-radius: 40px;
-            border: 1px solid rgba(255,255,255,0.1);
-            background: rgba(255,255,255,0.06);
-            color: #fff;
-            font-size: 18px;
-            outline: none;
-        }
-        .modo-jogador .input-palavra button {
-            background: #4ecdc4;
-            border: none;
-            color: #1a1f33;
-            font-weight: 700;
-            padding: 0 28px;
-            border-radius: 40px;
-            font-size: 18px;
-            cursor: pointer;
-            box-shadow: 0 4px 0 #2a7a73;
-        }
-        .modo-jogador .btn-bingo {
-            background: #ffd700;
-            border: none;
-            color: #1a1f33;
-            font-weight: 900;
-            padding: 14px 40px;
-            border-radius: 60px;
-            font-size: 28px;
-            cursor: pointer;
-            box-shadow: 0 6px 0 #b8960f;
-            margin-top: 10px;
-            transition: 0.08s linear;
-        }
-        .modo-jogador .btn-bingo:active { transform: translateY(6px); box-shadow: 0 2px 0 #b8960f; }
+  #app{min-height:100vh; display:flex; flex-direction:column; position:relative; z-index:1;}
+  .tela{display:none; flex:1; flex-direction:column; align-items:center; padding:24px;}
+  .tela.active{display:flex; animation:entrarTela .55s cubic-bezier(.2,.8,.3,1);}
+  @keyframes entrarTela{
+    from{opacity:0; transform:translateY(18px) scale(0.98);}
+    to{opacity:1; transform:translateY(0) scale(1);}
+  }
 
-        /* ===== PÓDIO ===== */
-        .podium-lista {
-            list-style: none;
-            max-width: 500px;
-            margin: 20px auto;
-        }
-        .podium-lista li {
-            display: flex;
-            justify-content: space-between;
-            padding: 12px 20px;
-            background: rgba(255,255,255,0.05);
-            border-radius: 60px;
-            margin-bottom: 8px;
-            border-left: 6px solid #e94560;
-            font-size: 20px;
-            animation: slideIn 0.4s ease-out both;
-        }
-        .podium-lista li:nth-child(1) { border-left-color: #ffd700; background: rgba(255,215,0,0.12); animation-delay: 0.1s; }
-        .podium-lista li:nth-child(2) { border-left-color: #c0c0c0; background: rgba(192,192,192,0.08); animation-delay: 0.2s; }
-        .podium-lista li:nth-child(3) { border-left-color: #cd7f32; background: rgba(205,127,50,0.08); animation-delay: 0.3s; }
-        @keyframes slideIn {
-            0% { opacity: 0; transform: translateX(-30px); }
-            100% { opacity: 1; transform: translateX(0); }
-        }
+  h1{
+    font-size:2.6rem; margin-bottom:8px; text-align:center; font-weight:800;
+    background:linear-gradient(90deg, var(--rosa), var(--laranja), var(--dourado), var(--rosa));
+    background-size:300% auto;
+    -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;
+    animation:brilharTitulo 6s linear infinite;
+  }
+  @keyframes brilharTitulo{ to{ background-position:300% center; } }
+  h2{font-size:1.7rem; margin-bottom:20px; text-align:center; color:var(--texto);}
+  h3{font-size:1.1rem; margin-bottom:12px; color:var(--agua); letter-spacing:.3px;}
 
-        /* ===== RESPONSIVO ===== */
-        @media (max-width: 768px) {
-            .config-grid { grid-template-columns: 1fr; }
-            .jogo-grid { grid-template-columns: 1fr; }
-            .modo-jogador { display: block; }
-            .coluna-admin { order: 2; }
-            .coluna-roleta { order: 1; }
-        }
-        .flex-center { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; }
-        .mt-16 { margin-top: 16px; }
-        .mb-12 { margin-bottom: 12px; }
-        .text-center { text-align: center; }
-        .hidden { display: none !important; }
-        h1 {
-            font-size: 48px;
-            text-align: center;
-            background: linear-gradient(135deg, #e94560, #f4a261);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-        .subtitle {
-            text-align: center;
-            color: rgba(255,255,255,0.6);
-            font-size: 20px;
-        }
-    </style>
+  /* ---------- Botões ---------- */
+  button{
+    font-family:inherit; cursor:pointer; border:none; border-radius:12px;
+    color:var(--texto); font-weight:600; position:relative; overflow:hidden;
+    transition:transform .15s ease, box-shadow .15s ease, filter .15s ease;
+  }
+  button:active{transform:translateY(2px);}
+  .ripple{
+    position:absolute; border-radius:50%; transform:scale(0);
+    background:rgba(255,255,255,0.45); pointer-events:none;
+    animation:rippleAnim .6s ease-out forwards;
+  }
+  @keyframes rippleAnim{ to{ transform:scale(4); opacity:0; } }
+
+  .btn-primario{
+    padding:14px 28px; font-size:1.05rem;
+    background:linear-gradient(135deg, var(--rosa), var(--rosa-esc));
+    box-shadow:0 6px 0 #6e1c33, 0 10px 22px rgba(233,69,96,0.4);
+  }
+  .btn-primario:hover{filter:brightness(1.12); transform:translateY(-2px); box-shadow:0 8px 0 #6e1c33, 0 14px 26px rgba(233,69,96,0.5);}
+  .btn-secundario{
+    padding:12px 22px; font-size:0.95rem;
+    background:var(--vidro); border:1px solid var(--vidro-borda);
+    box-shadow:0 4px 0 rgba(0,0,0,0.25); backdrop-filter:blur(6px);
+  }
+  .btn-secundario:hover{background:rgba(255,255,255,0.14); transform:translateY(-2px);}
+  .btn-perigo{background:linear-gradient(135deg,#e94560,#7a1f31); box-shadow:0 4px 0 #5e1626;}
+  .btn-perigo:hover{filter:brightness(1.1);}
+  .btn-ouro{
+    background:linear-gradient(135deg, var(--dourado), #b8860b); color:#2a1e00;
+    box-shadow:0 4px 0 #8a6300, 0 10px 20px rgba(255,215,0,0.25);
+  }
+  .btn-ouro:hover{filter:brightness(1.08); transform:translateY(-2px);}
+
+  /* ---------- Menu ---------- */
+  #tela-menu{justify-content:center; gap:26px;}
+  #tela-menu p{color:var(--texto-fraco); margin-bottom:6px; animation:fadeIn .8s ease;}
+  .menu-opcoes{display:flex; gap:26px; flex-wrap:wrap; justify-content:center;}
+  @keyframes fadeIn{from{opacity:0;} to{opacity:1;}}
+  .btn-menu{
+    width:190px; height:190px; border-radius:26px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px;
+    background:var(--vidro); border:1px solid var(--vidro-borda); backdrop-filter:blur(10px);
+    box-shadow:0 12px 32px rgba(0,0,0,0.4);
+    font-size:2.8rem; animation:apareceMenu .6s cubic-bezier(.2,.9,.3,1.2) backwards;
+  }
+  .btn-menu:nth-child(1){animation-delay:.05s;}
+  .btn-menu:nth-child(2){animation-delay:.2s;}
+  @keyframes apareceMenu{ from{opacity:0; transform:translateY(30px) scale(.85);} to{opacity:1; transform:translateY(0) scale(1);} }
+  .btn-menu span{font-size:1rem; color:var(--texto-fraco); font-weight:500;}
+  .btn-menu:hover{
+    border-color:var(--agua); transform:translateY(-6px) scale(1.04) rotate(-1deg);
+    box-shadow:0 20px 40px rgba(78,205,196,0.3);
+  }
+
+  /* ---------- Config ---------- */
+  #tela-config{gap:20px; width:100%; max-width:720px; margin:0 auto;}
+  .card{
+    width:100%; background:var(--vidro); border:1px solid var(--vidro-borda); border-radius:18px;
+    padding:20px; backdrop-filter:blur(10px); animation:entrarCard .5s ease backwards;
+    transition:transform .2s ease, box-shadow .2s ease;
+  }
+  .card:hover{box-shadow:0 8px 26px rgba(0,0,0,0.3);}
+  @keyframes entrarCard{ from{opacity:0; transform:translateY(16px);} to{opacity:1; transform:translateY(0);} }
+  .add-jogador{display:flex; gap:10px; margin-bottom:14px;}
+  .add-jogador input{flex:1;}
+  input, select{
+    padding:12px 14px; border-radius:10px; border:1px solid var(--vidro-borda);
+    background:rgba(255,255,255,0.05); color:var(--texto); font-size:1rem; outline:none;
+    transition:border-color .15s ease, box-shadow .15s ease;
+  }
+  input:focus, select:focus{border-color:var(--agua); box-shadow:0 0 0 3px rgba(78,205,196,0.2);}
+  #lista-jogadores{list-style:none; display:flex; flex-direction:column; gap:8px;}
+  #lista-jogadores li{
+    display:flex; justify-content:space-between; align-items:center;
+    background:rgba(255,255,255,0.05); padding:10px 14px; border-radius:10px;
+    animation:entrarLista .35s ease backwards;
+  }
+  @keyframes entrarLista{ from{opacity:0; transform:translateX(-14px);} to{opacity:1; transform:translateX(0);} }
+  #lista-jogadores button{
+    background:transparent; color:var(--rosa); font-size:1.1rem; padding:2px 8px; border-radius:8px;
+  }
+  #lista-jogadores button:hover{background:rgba(233,69,96,0.2);}
+  .temas-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(100px,1fr)); gap:8px; margin-bottom:14px;}
+  .tema-chip{
+    text-align:center; padding:10px 6px; border-radius:10px; font-size:0.85rem;
+    background:rgba(255,255,255,0.05); border:1px solid var(--vidro-borda); color:var(--texto-fraco);
+    transition:all .2s ease;
+  }
+  .tema-chip.ativo{
+    border-color:var(--agua); color:var(--texto); background:rgba(78,205,196,0.15);
+    box-shadow:0 0 14px rgba(78,205,196,0.35);
+  }
+  label{display:block; margin-top:8px; font-size:0.9rem; color:var(--texto-fraco);}
+  label select{width:100%; margin-top:6px;}
+  .config-botoes{display:flex; gap:12px; justify-content:space-between; width:100%;}
+
+  /* ---------- Tela de Jogo ---------- */
+  #tela-jogo{width:100%; align-items:stretch; padding:0;}
+  .admin-view{display:flex; flex-wrap:wrap; gap:24px; padding:24px; max-width:1200px; margin:0 auto; width:100%;}
+  .roleta-coluna{flex:1; min-width:320px; display:flex; flex-direction:column; align-items:center; gap:18px;}
+
+  .roleta-wrap{
+    position:relative; width:min(380px, 82vw); height:min(380px, 82vw);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .luzes{position:absolute; inset:0;}
+  .luz{
+    position:absolute; width:10px; height:10px; border-radius:50%; top:50%; left:50%;
+    background:var(--dourado); box-shadow:0 0 8px 2px rgba(255,215,0,0.7);
+    animation:piscar 1.6s ease-in-out infinite;
+    transform:translate(-50%,-50%);
+  }
+  .luz.girando{animation-duration:.35s;}
+  @keyframes piscar{ 0%,100%{opacity:.25; box-shadow:0 0 4px 1px rgba(255,215,0,0.4);} 50%{opacity:1; box-shadow:0 0 12px 4px rgba(255,215,0,0.9);} }
+
+  .anel-glow{
+    position:absolute; inset:6%; border-radius:50%;
+    box-shadow:0 0 40px 10px rgba(233,69,96,0.35), 0 0 70px 20px rgba(78,205,196,0.15);
+    animation:respirar 3s ease-in-out infinite;
+    pointer-events:none;
+  }
+  @keyframes respirar{ 0%,100%{opacity:.6; transform:scale(1);} 50%{opacity:1; transform:scale(1.03);} }
+
+  #roleta-canvas{
+    position:relative; width:78%; height:78%; border-radius:50%;
+    box-shadow:0 0 0 6px #0d0d1a, 0 0 0 9px var(--dourado), 0 10px 40px rgba(0,0,0,0.6);
+    transition: transform 4.2s cubic-bezier(0.12, 0.85, 0.18, 1);
+    z-index:2;
+  }
+  .ponteiro{
+    position:absolute; top:-6px; left:50%; transform:translateX(-50%);
+    width:0; height:0; z-index:6;
+    border-left:16px solid transparent; border-right:16px solid transparent;
+    border-top:28px solid var(--dourado);
+    filter:drop-shadow(0 3px 5px rgba(0,0,0,0.6));
+    animation:apontarPulso 1.4s ease-in-out infinite;
+  }
+  @keyframes apontarPulso{ 0%,100%{transform:translateX(-50%) translateY(0);} 50%{transform:translateX(-50%) translateY(3px);} }
+
+  .info-jogo{display:flex; gap:16px; align-items:center; flex-wrap:wrap; justify-content:center;}
+  .perspectiva-letra{perspective:600px;}
+  .letra-display{
+    font-size:3rem; font-weight:800; width:80px; height:80px; border-radius:16px;
+    display:flex; align-items:center; justify-content:center;
+    background:linear-gradient(135deg, var(--rosa), var(--laranja)); box-shadow:0 6px 18px rgba(233,69,96,0.4);
+    transform-style:preserve-3d;
+  }
+  .letra-display.flip{ animation:flipLetra .7s ease; }
+  @keyframes flipLetra{
+    0%{transform:rotateY(0deg) scale(1);}
+    45%{transform:rotateY(95deg) scale(1.08); background:linear-gradient(135deg, var(--dourado), var(--laranja));}
+    55%{transform:rotateY(95deg) scale(1.08); background:linear-gradient(135deg, var(--dourado), var(--laranja));}
+    100%{transform:rotateY(360deg) scale(1);}
+  }
+  .tema-display{font-size:1.2rem; font-weight:600; color:var(--agua); transition:transform .2s ease;}
+  .tema-display.pulso{ animation:pulsoTexto .4s ease; }
+  @keyframes pulsoTexto{ 50%{ transform:scale(1.15); color:var(--dourado); } }
+  .rodada-display{font-size:1rem; color:var(--texto-fraco); background:var(--vidro); padding:6px 12px; border-radius:8px; transition:transform .2s ease;}
+  .rodada-display.pulso{ animation:pulsoTexto .4s ease; }
+
+  .painel-admin{flex:1; min-width:320px; display:flex; flex-direction:column; gap:16px;}
+  .linha{display:flex; gap:10px; align-items:center; flex-wrap:wrap;}
+  .status-lista{display:flex; flex-direction:column; gap:8px; max-height:280px; overflow-y:auto;}
+  .status-item{
+    background:rgba(255,255,255,0.05); border-radius:10px; padding:10px 14px;
+    display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;
+    animation:entrarLista .3s ease backwards; transition:background .2s ease;
+  }
+  .status-item:hover{background:rgba(255,255,255,0.09);}
+  .status-item .nome{font-weight:600;}
+  .status-item .pontos{color:var(--dourado); font-weight:700;}
+  .status-item .detalhe{font-size:0.8rem; color:var(--texto-fraco); width:100%;}
+  .botoes-globais{display:flex; gap:10px; margin-top:auto; padding-top:10px;}
+  .notificacao{
+    background:rgba(255,215,0,0.14); border:1px solid var(--dourado); border-radius:10px;
+    padding:10px 14px; display:flex; justify-content:space-between; align-items:center; gap:10px;
+    animation:entrarDireita .35s ease;
+  }
+  @keyframes entrarDireita{ from{opacity:0; transform:translateX(20px);} to{opacity:1; transform:translateX(0);} }
+
+  /* ---------- Modo Jogador ---------- */
+  .player-view{
+    flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:28px;
+    padding:24px; text-align:center;
+  }
+  .letra-display-player{
+    font-size:6rem; font-weight:900; width:160px; height:160px; border-radius:30px;
+    display:flex; align-items:center; justify-content:center;
+    background:linear-gradient(135deg, var(--rosa), var(--laranja));
+    box-shadow:0 12px 34px rgba(233,69,96,0.5);
+    transform-style:preserve-3d;
+  }
+  .letra-display-player.flip{ animation:flipLetra .7s ease; }
+  .tema-display-player{font-size:1.7rem; font-weight:700; color:var(--agua);}
+  .tema-display-player.pulso{ animation:pulsoTexto .4s ease; }
+  .botoes-pontos{display:flex; gap:16px;}
+  .btn-ponto{
+    width:92px; height:92px; border-radius:50%; font-size:1.7rem; font-weight:800;
+    background:var(--vidro); border:2px solid var(--vidro-borda); box-shadow:0 6px 0 rgba(0,0,0,0.3);
+  }
+  .btn-ponto:hover{transform:translateY(-3px);}
+  .btn-ponto.selecionado{
+    background:linear-gradient(135deg,var(--agua),#2a9d8f); border-color:var(--agua);
+    animation:selecionarPonto .35s ease;
+  }
+  @keyframes selecionarPonto{ 50%{ transform:scale(1.15); } }
+  .envio-palavra{display:flex; gap:10px; width:100%; max-width:340px;}
+  .envio-palavra input{flex:1; text-align:center;}
+  .btn-bingo-grande{
+    padding:22px 40px; font-size:1.5rem; border-radius:20px;
+    background:linear-gradient(135deg, var(--dourado), #b8860b); color:#2a1e00;
+    box-shadow:0 8px 0 #8a6300, 0 14px 28px rgba(255,215,0,0.35);
+    animation:pulsarBingo 2s ease-in-out infinite;
+  }
+  @keyframes pulsarBingo{ 0%,100%{box-shadow:0 8px 0 #8a6300, 0 14px 28px rgba(255,215,0,0.35);} 50%{box-shadow:0 8px 0 #8a6300, 0 18px 40px rgba(255,215,0,0.6);} }
+  #palavras-enviadas-player{display:flex; flex-direction:column; gap:6px; max-width:320px; width:100%;}
+  .palavra-chip{background:var(--vidro); border-radius:8px; padding:8px 12px; font-size:0.9rem; animation:entrarLista .3s ease;}
+
+  /* ---------- Pódio ---------- */
+  #tela-podio{justify-content:flex-start; gap:24px; padding-top:40px;}
+  #podio-container{display:flex; flex-direction:column; gap:12px; width:100%; max-width:520px;}
+  .podio-item{
+    display:flex; align-items:center; gap:14px; padding:16px 20px; border-radius:16px;
+    background:var(--vidro); border:1px solid var(--vidro-borda); opacity:0; transform:translateX(-30px);
+    animation:entrarPodio .55s cubic-bezier(.2,.9,.3,1.2) forwards;
+  }
+  @keyframes entrarPodio{to{opacity:1; transform:translateX(0);}}
+  .podio-item .posicao{font-size:1.5rem; font-weight:800; width:36px; text-align:center;}
+  .podio-item .nome{flex:1; font-weight:700; font-size:1.1rem;}
+  .podio-item .pontos{font-weight:800; color:var(--dourado);}
+  .podio-item.ouro{border-color:var(--dourado); box-shadow:0 0 26px rgba(255,215,0,0.4); animation:entrarPodio .55s cubic-bezier(.2,.9,.3,1.2) forwards, brilharOuro 2s ease-in-out infinite 1s;}
+  @keyframes brilharOuro{ 0%,100%{box-shadow:0 0 26px rgba(255,215,0,0.4);} 50%{box-shadow:0 0 40px rgba(255,215,0,0.65);} }
+  .podio-item.prata{border-color:#c0c0c0; box-shadow:0 0 18px rgba(192,192,192,0.25);}
+  .podio-item.bronze{border-color:#cd7f32; box-shadow:0 0 18px rgba(205,127,50,0.25);}
+
+  #confetti-container{position:fixed; inset:0; pointer-events:none; overflow:hidden; z-index:999;}
+  .confete{position:absolute; top:-20px; border-radius:2px; animation:cair linear forwards;}
+  @keyframes cair{to{transform:translateY(110vh) rotate(720deg); opacity:0.15;}}
+
+  /* ---------- Responsividade: modo jogador em telas pequenas ---------- */
+  @media (max-width: 768px){ .admin-view{display:none;} }
+  @media (min-width: 769px){ .player-view{display:none;} }
+  ::-webkit-scrollbar{width:8px;}
+  ::-webkit-scrollbar-thumb{background:var(--vidro-borda); border-radius:8px;}
+</style>
 </head>
 <body>
-<div class="app" id="app">
-    <!-- ========== TELA INICIAL ========== -->
-    <div id="telaInicial" class="tela ativa">
-        <h1>🎲 Stop & Bingo</h1>
-        <p class="subtitle">Escolha o jogo e divirta-se!</p>
-        <div class="menu-cards">
-            <div class="card-jogo" data-jogo="stop">
-                <div class="icon">🛑</div>
-                <h2>Stop</h2>
-                <p>Gire, marque pontos por tema, veja o pódio</p>
-            </div>
-            <div class="card-jogo" data-jogo="bingo">
-                <div class="icon">🎰</div>
-                <h2>Bingo</h2>
-                <p>Gire, escreva palavras, valide e ganhe pontos</p>
-            </div>
-        </div>
+<div id="particulas"></div>
+<div id="app">
+
+  <!-- TELA 1: MENU -->
+  <div id="tela-menu" class="tela active">
+    <h1>🎉 Stop &amp; Bingo</h1>
+    <p>Escolha o jogo para começar</p>
+    <div class="menu-opcoes">
+      <button class="btn-menu" data-jogo="stop">🛑<span>Stop</span></button>
+      <button class="btn-menu" data-jogo="bingo">🎰<span>Bingo</span></button>
+    </div>
+  </div>
+
+  <!-- TELA 2: CONFIGURAÇÃO -->
+  <div id="tela-config" class="tela">
+    <h2 id="config-titulo">Configuração</h2>
+
+    <div class="card">
+      <h3>👥 Jogadores</h3>
+      <div class="add-jogador">
+        <input id="input-jogador" placeholder="Nome do jogador" maxlength="20"/>
+        <button class="btn-primario" id="btn-add-jogador">Adicionar</button>
+      </div>
+      <ul id="lista-jogadores"></ul>
     </div>
 
-    <!-- ========== TELA DE CONFIGURAÇÃO ========== -->
-    <div id="telaConfig" class="tela">
-        <h2 id="configTitulo" class="text-center" style="font-size:32px;">⚙️ Configurar</h2>
-        <div class="config-grid">
-            <div class="config-card">
-                <h3>👥 Jogadores</h3>
-                <div class="input-group">
-                    <input type="text" id="inputNome" placeholder="Nome do jogador" />
-                    <button id="btnAddJogador">+</button>
-                </div>
-                <div class="lista-jogadores" id="listaJogadoresConfig"></div>
-            </div>
-            <div class="config-card" id="configEspecifica">
-                <h3 id="configEspecificaTitulo">📂 Configurações</h3>
-                <div id="configEspecificaConteudo"></div>
-            </div>
-        </div>
-        <div class="flex-center mt-16">
-            <button class="btn-iniciar" id="btnIniciarJogo">🚀 Iniciar Jogo</button>
-        </div>
+    <div class="card config-especifica" id="config-stop" style="display:none">
+      <h3>🎯 Temas do Stop</h3>
+      <div class="temas-grid" id="temas-grid-stop"></div>
+      <label>Tema inicial
+        <select id="select-tema-inicial-stop"></select>
+      </label>
     </div>
 
-    <!-- ========== TELA DO JOGO ========== -->
-    <div id="telaJogo" class="tela">
-        <div class="jogo-grid">
-            <!-- Coluna esquerda: roleta -->
-            <div class="coluna-roleta">
-                <div class="canvas-wrapper">
-                    <canvas id="roletaCanvas" width="500" height="500"></canvas>
-                </div>
-                <div class="info-rodada">
-                    <div class="info-item">
-                        <span>🎯</span>
-                        <span class="valor" id="letraAtual">?</span>
-                    </div>
-                    <div class="info-item">
-                        <span>📂</span>
-                        <span class="tema-valor" id="temaAtual">Nenhum</span>
-                    </div>
-                    <div class="info-item">
-                        <span>⏳</span>
-                        <span class="valor" id="rodadaAtual" style="background:#f4a261;color:#1a1f33;">0</span>
-                    </div>
-                </div>
-                <button class="btn-girar" id="btnGirar">🔄 Girar Roleta</button>
-
-                <!-- MODO JOGADOR (mobile) -->
-                <div class="modo-jogador" id="modoJogador">
-                    <div class="letra-grande" id="jogadorLetra">?</div>
-                    <div class="tema-grande" id="jogadorTema">Tema</div>
-                    <div id="jogadorAcoes"></div>
-                </div>
-            </div>
-
-            <!-- Coluna direita: admin -->
-            <div class="coluna-admin">
-                <h3>🎮 Painel do Administrador</h3>
-                <div class="admin-controls" id="adminControls">
-                    <!-- preenchido dinamicamente -->
-                </div>
-                <div class="status-box" id="statusBox">
-                    <div style="color:rgba(255,255,255,0.3); text-align:center;">Aguardando...</div>
-                </div>
-                <div class="flex-center mt-16">
-                    <button class="btn-admin danger" id="btnFinalizar">🏁 Finalizar</button>
-                    <button class="btn-admin" id="btnVoltarConfig">⬅ Config</button>
-                </div>
-            </div>
-        </div>
+    <div class="card config-especifica" id="config-bingo" style="display:none">
+      <h3>🎯 Tema do Bingo</h3>
+      <select id="select-tema-bingo" style="width:100%"></select>
     </div>
 
-    <!-- ========== PÓDIO ========== -->
-    <div id="telaPodium" class="tela">
-        <h2 class="text-center" style="font-size:40px;">🏆 Pódio</h2>
-        <ul class="podium-lista" id="podiumLista"></ul>
-        <div class="flex-center">
-            <button class="btn-admin" id="btnVoltarInicio">⬅ Voltar ao início</button>
-        </div>
+    <div class="config-botoes">
+      <button class="btn-secundario" id="btn-voltar-menu">⬅ Voltar</button>
+      <button class="btn-primario" id="btn-iniciar-jogo">🚀 Iniciar Jogo</button>
     </div>
+  </div>
+
+  <!-- TELA 3: JOGO -->
+  <div id="tela-jogo" class="tela">
+
+    <!-- MODO ADMINISTRADOR (computador, largura >= 769px) -->
+    <div class="admin-view">
+      <div class="roleta-coluna">
+        <div class="roleta-wrap">
+          <div class="anel-glow"></div>
+          <div class="luzes" id="luzes"></div>
+          <div class="ponteiro"></div>
+          <canvas id="roleta-canvas" width="500" height="500"></canvas>
+        </div>
+        <div class="info-jogo">
+          <div class="perspectiva-letra"><div class="letra-display" id="admin-letra">-</div></div>
+          <div>
+            <div class="tema-display" id="admin-tema">-</div>
+            <div class="rodada-display" id="admin-rodada">Rodada 1</div>
+          </div>
+        </div>
+        <button class="btn-primario" id="btn-girar">🎡 Girar Roleta</button>
+      </div>
+
+      <div class="painel-admin">
+        <!-- Painel STOP -->
+        <div id="painel-stop-admin" style="display:none">
+          <div class="card">
+            <h3>⚙️ Controles</h3>
+            <div class="linha">
+              <select id="select-mudar-tema-stop"></select>
+              <button class="btn-secundario" id="btn-alterar-tema-stop">Alterar</button>
+            </div>
+            <div class="linha" style="margin-top:12px;">
+              <button class="btn-secundario" id="btn-proxima-rodada">⏭ Próxima rodada</button>
+              <button class="btn-perigo" id="btn-zerar-pontos">🔄 Zerar pontos</button>
+            </div>
+          </div>
+          <div class="card" style="margin-top:16px;">
+            <h3>📊 Status</h3>
+            <div class="status-lista" id="status-stop"></div>
+          </div>
+        </div>
+
+        <!-- Painel BINGO -->
+        <div id="painel-bingo-admin" style="display:none">
+          <div class="card">
+            <h3>⚙️ Controles</h3>
+            <p style="margin-bottom:10px;">Tema atual: <strong id="bingo-tema-admin" style="color:var(--agua);">-</strong></p>
+            <div class="linha">
+              <button class="btn-primario" id="btn-validar-bingo">✅ Validar Bingo</button>
+              <button class="btn-perigo" id="btn-limpar-palavras">🗑️ Limpar palavras</button>
+            </div>
+          </div>
+          <div class="card" id="card-notificacoes" style="margin-top:16px; display:none;">
+            <h3>🔔 Solicitações de Bingo</h3>
+            <div id="notificacoes-lista"></div>
+          </div>
+          <div class="card" style="margin-top:16px;">
+            <h3>📊 Status</h3>
+            <div class="status-lista" id="status-bingo"></div>
+          </div>
+        </div>
+
+        <div class="botoes-globais">
+          <button class="btn-ouro" id="btn-finalizar">🏁 Finalizar</button>
+          <button class="btn-secundario" id="btn-config">⬅ Config</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODO JOGADOR (celular, largura < 769px) -->
+    <div class="player-view">
+      <div class="perspectiva-letra"><div class="letra-display-player" id="player-letra">-</div></div>
+      <div class="tema-display-player" id="player-tema">-</div>
+
+      <div id="player-stop" style="display:none">
+        <div class="botoes-pontos">
+          <button class="btn-ponto" data-pontos="10">10</button>
+          <button class="btn-ponto" data-pontos="5">5</button>
+          <button class="btn-ponto" data-pontos="0">0</button>
+        </div>
+      </div>
+
+      <div id="player-bingo" style="display:none">
+        <div class="envio-palavra">
+          <input id="input-palavra" placeholder="Digite a palavra" maxlength="30"/>
+          <button class="btn-primario" id="btn-enviar-palavra">Enviar</button>
+        </div>
+        <div id="palavras-enviadas-player"></div>
+        <button class="btn-bingo-grande" id="btn-bingo">🎰 BINGO!</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TELA 4: PÓDIO -->
+  <div id="tela-podio" class="tela">
+    <h1>🏆 Pódio Final</h1>
+    <div id="podio-container"></div>
+    <button class="btn-primario" id="btn-reiniciar">⬅ Voltar ao início</button>
+  </div>
+
 </div>
+<div id="confetti-container"></div>
 
 <script>
-    // ================================================================
-    // CLIENTE SOCKET
-    // ================================================================
-    const socket = io();
-    let estadoAtual = null;
-    let meuNome = null; // armazena o nome do jogador atual (para marcar pontos)
+const socket = io();
+const TEMAS = ['Person','Food','Place','Color','Job','Verb','Object','Animal'];
+const LETRAS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+let estado = null;
+let currentRotation = 0;
+let ultimaLetraGirada = null;
+let jogoSelecionadoConfig = null;
 
-    // ================================================================
-    // DOM REFS
-    // ================================================================
-    const $ = id => document.getElementById(id);
-    const telaInicial = $('telaInicial');
-    const telaConfig = $('telaConfig');
-    const telaJogo = $('telaJogo');
-    const telaPodium = $('telaPodium');
-    const configTitulo = $('configTitulo');
-    const configEspecifica = $('configEspecifica');
-    const configEspecificaTitulo = $('configEspecificaTitulo');
-    const configEspecificaConteudo = $('configEspecificaConteudo');
-    const inputNome = $('inputNome');
-    const btnAddJogador = $('btnAddJogador');
-    const listaJogadoresConfig = $('listaJogadoresConfig');
-    const btnIniciarJogo = $('btnIniciarJogo');
-    const canvas = $('roletaCanvas');
-    const ctx = canvas.getContext('2d');
-    const letraAtualEl = $('letraAtual');
-    const temaAtualEl = $('temaAtual');
-    const rodadaAtualEl = $('rodadaAtual');
-    const btnGirar = $('btnGirar');
-    const adminControls = $('adminControls');
-    const statusBox = $('statusBox');
-    const btnFinalizar = $('btnFinalizar');
-    const btnVoltarConfig = $('btnVoltarConfig');
-    const jogadorLetra = $('jogadorLetra');
-    const jogadorTema = $('jogadorTema');
-    const jogadorAcoes = $('jogadorAcoes');
-    const podiumLista = $('podiumLista');
-    const btnVoltarInicio = $('btnVoltarInicio');
+// ---------- Partículas de fundo ----------
+(function criarParticulas(){
+  const cont = document.getElementById('particulas');
+  const n = 22;
+  for(let i=0;i<n;i++){
+    const p = document.createElement('div');
+    p.className = 'particula';
+    const tamanho = 3 + Math.random()*7;
+    p.style.width = tamanho+'px';
+    p.style.height = tamanho+'px';
+    p.style.left = Math.random()*100+'vw';
+    p.style.setProperty('--drift', (Math.random()*80-40)+'px');
+    p.style.animationDuration = (10 + Math.random()*14)+'s';
+    p.style.animationDelay = (Math.random()*14)+'s';
+    cont.appendChild(p);
+  }
+})();
 
-    // ================================================================
-    // ROLETA (canvas)
-    // ================================================================
-    const W = canvas.width, H = canvas.height;
-    const cx = W/2, cy = H/2;
-    const raio = 220;
-    const letras = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
-    const N = letras.length;
-    const anguloFatia = (2 * Math.PI) / N;
-    const cores = letras.map((_, i) => (i % 2 === 0) ? '#ffffff' : '#e63946');
+// ---------- Ripple em todos os botões ----------
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('button');
+  if(!btn) return;
+  const rect = btn.getBoundingClientRect();
+  const size = Math.max(rect.width, rect.height);
+  const span = document.createElement('span');
+  span.className = 'ripple';
+  span.style.width = span.style.height = size + 'px';
+  span.style.left = (e.clientX - rect.left - size/2) + 'px';
+  span.style.top = (e.clientY - rect.top - size/2) + 'px';
+  btn.appendChild(span);
+  setTimeout(() => span.remove(), 650);
+});
 
-    let rotacaoAtual = 0;
-    let girando = false;
-    let animId = null;
+// ---------- Utilidades de nome do jogador (localStorage) ----------
+function getMeuNome(){
+  let nome = localStorage.getItem('sb_nome_jogador');
+  if(!nome){
+    nome = (prompt('Digite seu nome:') || '').trim();
+    if(nome) localStorage.setItem('sb_nome_jogador', nome);
+  }
+  return nome;
+}
 
-    function desenharRoleta(rotacao) {
-        ctx.clearRect(0, 0, W, H);
-        for (let i = 0; i < N; i++) {
-            const inicio = i * anguloFatia + rotacao;
-            const fim = inicio + anguloFatia;
-            ctx.beginPath();
-            ctx.moveTo(cx, cy);
-            ctx.arc(cx, cy, raio, inicio, fim);
-            ctx.closePath();
-            ctx.fillStyle = cores[i];
-            ctx.fill();
-            ctx.strokeStyle = '#222';
-            ctx.lineWidth = 1.5;
-            ctx.stroke();
-            const anguloMedio = inicio + anguloFatia/2;
-            const distTexto = raio * 0.72;
-            const xTexto = cx + Math.cos(anguloMedio) * distTexto;
-            const yTexto = cy + Math.sin(anguloMedio) * distTexto;
-            ctx.save();
-            ctx.translate(xTexto, yTexto);
-            ctx.rotate(anguloMedio + (anguloMedio > Math.PI/2 ? Math.PI : 0));
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillStyle = (cores[i] === '#ffffff') ? '#111' : '#fff';
-            ctx.font = 'bold 22px "Segoe UI", Arial, sans-serif';
-            ctx.shadowColor = 'rgba(0,0,0,0.3)';
-            ctx.shadowBlur = 4;
-            ctx.fillText(letras[i], 0, 0);
-            ctx.shadowBlur = 0;
-            ctx.restore();
-        }
-        // centro
-        const grad = ctx.createRadialGradient(cx, cy, 10, cx, cy, 40);
-        grad.addColorStop(0, '#f0f0f0');
-        grad.addColorStop(0.7, '#c0c0c0');
-        grad.addColorStop(1, '#888');
-        ctx.beginPath();
-        ctx.arc(cx, cy, 35, 0, 2*Math.PI);
-        ctx.fillStyle = grad;
-        ctx.fill();
-        ctx.strokeStyle = '#333';
-        ctx.lineWidth = 3;
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.arc(cx, cy, 8, 0, 2*Math.PI);
-        ctx.fillStyle = '#e94560';
-        ctx.fill();
-        // ponteiro
-        const pontaY = 15, baseY = 45, baseLarg = 30;
-        ctx.beginPath();
-        ctx.moveTo(cx, pontaY);
-        ctx.lineTo(cx - baseLarg/2, baseY);
-        ctx.lineTo(cx + baseLarg/2, baseY);
-        ctx.closePath();
-        ctx.fillStyle = '#ffd700';
-        ctx.shadowColor = 'rgba(255,215,0,0.7)';
-        ctx.shadowBlur = 15;
-        ctx.fill();
-        ctx.shadowBlur = 0;
-        ctx.strokeStyle = '#b8860b';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-    }
+// ---------- Navegação entre telas ----------
+function mostrarTela(id){
+  document.querySelectorAll('.tela').forEach(t => t.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
 
-    function getLetraNoTopo(rotacao) {
-        const anguloPonteiro = -Math.PI/2;
-        let ponteiroNormalizado = ((anguloPonteiro % (2*Math.PI)) + 2*Math.PI) % (2*Math.PI);
-        let indice = (ponteiroNormalizado - rotacao) / anguloFatia;
-        indice = ((indice % N) + N) % N;
-        return Math.floor(indice);
-    }
+// ---------- TELA MENU ----------
+document.querySelectorAll('.btn-menu').forEach(btn => {
+  btn.addEventListener('click', () => {
+    jogoSelecionadoConfig = btn.dataset.jogo;
+    prepararTelaConfig();
+    mostrarTela('tela-config');
+  });
+});
 
-    // Inicializa roleta com A no topo
-    let rotInicial = -Math.PI/2 - anguloFatia/2;
-    rotInicial = ((rotInicial % (2*Math.PI)) + 2*Math.PI) % (2*Math.PI);
-    rotacaoAtual = rotInicial;
-    desenharRoleta(rotacaoAtual);
+// ---------- TELA CONFIG ----------
+function prepararTelaConfig(){
+  document.getElementById('config-titulo').textContent =
+    jogoSelecionadoConfig === 'stop' ? '🛑 Configurar Stop' : '🎰 Configurar Bingo';
 
-    // ================================================================
-    // NAVEGAÇÃO ENTRE TELAS
-    // ================================================================
-    function mostrarTela(id) {
-        document.querySelectorAll('.tela').forEach(t => t.classList.remove('ativa'));
-        document.getElementById(id).classList.add('ativa');
-    }
+  document.getElementById('config-stop').style.display = jogoSelecionadoConfig === 'stop' ? 'block' : 'none';
+  document.getElementById('config-bingo').style.display = jogoSelecionadoConfig === 'bingo' ? 'block' : 'none';
 
-    // ================================================================
-    // MENU INICIAL -> CONFIG
-    // ================================================================
-    document.querySelectorAll('.card-jogo').forEach(card => {
-        card.addEventListener('click', function() {
-            const jogo = this.dataset.jogo;
-            socket.emit('set_jogo', jogo);
-            configTitulo.textContent = jogo === 'stop' ? '⚙️ Configurar Stop' : '⚙️ Configurar Bingo';
-            if (jogo === 'stop') {
-                configEspecificaTitulo.textContent = '📂 Temas (8)';
-                configEspecificaConteudo.innerHTML = `
-                    <p style="color:rgba(255,255,255,0.6);">Temas: Person, Food, Place, Color, Job, Verb, Object, Animal</p>
-                    <div style="margin-top:8px;">
-                        <label style="color:rgba(255,255,255,0.5);">Tema inicial:</label>
-                        <select id="selectTemaStop" style="width:100%; padding:8px; border-radius:40px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); color:#fff; margin-top:4px;">
-                            ${['Person','Food','Place','Color','Job','Verb','Object','Animal'].map(t => `<option value="${t}">${t}</option>`).join('')}
-                        </select>
-                    </div>
-                `;
-            } else {
-                configEspecificaTitulo.textContent = '📂 Tema do Bingo';
-                configEspecificaConteudo.innerHTML = `
-                    <p style="color:rgba(255,255,255,0.6);">Escolha o tema para as palavras.</p>
-                    <div style="margin-top:8px;">
-                        <label style="color:rgba(255,255,255,0.5);">Tema:</label>
-                        <select id="selectTemaBingo" style="width:100%; padding:8px; border-radius:40px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); color:#fff; margin-top:4px;">
-                            ${['Person','Food','Place','Color','Job','Verb','Object','Animal'].map(t => `<option value="${t}">${t}</option>`).join('')}
-                        </select>
-                    </div>
-                `;
-            }
-            mostrarTela('telaConfig');
-        });
-    });
+  const gridTemas = document.getElementById('temas-grid-stop');
+  gridTemas.innerHTML = TEMAS.map((t,i) => `<div class="tema-chip" data-tema="${t}" style="animation-delay:${i*0.04}s">${t}</div>`).join('');
 
-    // ================================================================
-    // GERENCIAR JOGADORES (socket)
-    // ================================================================
-    function renderizarListaJogadores(jogadores) {
-        listaJogadoresConfig.innerHTML = '';
-        if (!jogadores || jogadores.length === 0) {
-            listaJogadoresConfig.innerHTML = '<div style="color:rgba(255,255,255,0.2);text-align:center;padding:12px;">Nenhum jogador</div>';
-            return;
-        }
-        jogadores.forEach(j => {
-            const div = document.createElement('div');
-            div.className = 'item';
-            div.innerHTML = `
-                <span>${j.nome}</span>
-                <button class="remove" data-nome="${j.nome}">✕</button>
-            `;
-            div.querySelector('.remove').addEventListener('click', function() {
-                socket.emit('remover_jogador', this.dataset.nome);
-            });
-            listaJogadoresConfig.appendChild(div);
-        });
-    }
+  const selInicial = document.getElementById('select-tema-inicial-stop');
+  selInicial.innerHTML = TEMAS.map(t => `<option value="${t}">${t}</option>`).join('');
+  destacarChipTema(selInicial.value);
+  selInicial.addEventListener('change', () => destacarChipTema(selInicial.value));
 
-    btnAddJogador.addEventListener('click', function() {
-        const nome = inputNome.value.trim();
-        if (!nome) { alert('Digite um nome.'); return; }
-        socket.emit('adicionar_jogador', nome);
-        inputNome.value = '';
-    });
-    inputNome.addEventListener('keydown', e => { if (e.key === 'Enter') btnAddJogador.click(); });
+  const selBingo = document.getElementById('select-tema-bingo');
+  selBingo.innerHTML = TEMAS.map(t => `<option value="${t}">${t}</option>`).join('');
+}
+function destacarChipTema(tema){
+  document.querySelectorAll('#temas-grid-stop .tema-chip').forEach(c => {
+    c.classList.toggle('ativo', c.dataset.tema === tema);
+  });
+}
 
-    // ================================================================
-    // INICIAR JOGO
-    // ================================================================
-    btnIniciarJogo.addEventListener('click', function() {
-        const selectTemaStop = document.getElementById('selectTemaStop');
-        const selectTemaBingo = document.getElementById('selectTemaBingo');
-        if (selectTemaStop) socket.emit('mudar_tema_stop', selectTemaStop.value);
-        if (selectTemaBingo) socket.emit('set_tema_bingo', selectTemaBingo.value);
-        mostrarTela('telaJogo');
-        // Forçar atualização da UI
-        if (estadoAtual) atualizarUI(estadoAtual);
-    });
+document.getElementById('btn-voltar-menu').addEventListener('click', () => mostrarTela('tela-menu'));
 
-    // ================================================================
-    // RECEBER ESTADO DO SERVIDOR
-    // ================================================================
-    socket.on('estado_inicial', (estado) => {
-        estadoAtual = estado;
-        atualizarUI(estado);
-        renderizarListaJogadores(estado.jogadores);
-        if (document.getElementById('telaJogo').classList.contains('ativa')) {
-            montarAdminControls(estado);
-            atualizarStatus(estado);
-        }
-    });
+document.getElementById('btn-add-jogador').addEventListener('click', adicionarJogadorConfig);
+document.getElementById('input-jogador').addEventListener('keydown', e => {
+  if(e.key === 'Enter') adicionarJogadorConfig();
+});
+function adicionarJogadorConfig(){
+  const input = document.getElementById('input-jogador');
+  const nome = input.value.trim();
+  if(!nome) return;
+  socket.emit('adicionar_jogador', nome);
+  input.value = '';
+}
 
-    socket.on('estado_atualizado', (estado) => {
-        estadoAtual = estado;
-        atualizarUI(estado);
-        renderizarListaJogadores(estado.jogadores);
-        if (document.getElementById('telaJogo').classList.contains('ativa')) {
-            montarAdminControls(estado);
-            atualizarStatus(estado);
-            atualizarModoJogador(estado);
-        }
-    });
+document.getElementById('btn-iniciar-jogo').addEventListener('click', () => {
+  if(!jogoSelecionadoConfig) return;
+  socket.emit('set_jogo', jogoSelecionadoConfig);
+  if(jogoSelecionadoConfig === 'stop'){
+    socket.emit('mudar_tema_stop', document.getElementById('select-tema-inicial-stop').value);
+  } else {
+    socket.emit('set_tema_bingo', document.getElementById('select-tema-bingo').value);
+  }
+  mostrarTela('tela-jogo');
+});
 
-    socket.on('jogo_finalizado', () => {
-        if (!estadoAtual) return;
-        const ranking = [...estadoAtual.jogadores].sort((a,b) => b.pontos - a.pontos);
-        podiumLista.innerHTML = '';
-        ranking.forEach((j, i) => {
-            const li = document.createElement('li');
-            li.innerHTML = `<span>${i+1}º</span><span>${j.nome}</span><span>${j.pontos} pts</span>`;
-            podiumLista.appendChild(li);
-        });
-        mostrarTela('telaPodium');
-        // confetti (se disponível)
-        if (typeof confetti !== 'undefined') {
-            confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
-            setTimeout(() => confetti({ particleCount: 100, spread: 50, origin: { y: 0.4 } }), 300);
-        }
-    });
+// ---------- TELA JOGO: controles ADMIN ----------
+const btnGirar = document.getElementById('btn-girar');
+btnGirar.addEventListener('click', () => {
+  btnGirar.disabled = true;
+  socket.emit('girar_roleta');
+  setTimeout(() => { btnGirar.disabled = false; }, 4300);
+});
 
-    socket.on('bingo_valido', ({ jogador, feedback }) => {
-        alert(`🎉 BINGO VÁLIDO! ${jogador} ganhou 1 ponto.\n\n${feedback}`);
-    });
-    socket.on('bingo_invalido', (feedback) => {
-        alert(`❌ BINGO INVÁLIDO! Você perdeu 1 ponto.\n\n${feedback}`);
-    });
-    socket.on('erro_bingo', (msg) => { alert(msg); });
+const selMudarTemaStop = document.getElementById('select-mudar-tema-stop');
+selMudarTemaStop.innerHTML = TEMAS.map(t => `<option value="${t}">${t}</option>`).join('');
+document.getElementById('btn-alterar-tema-stop').addEventListener('click', () => {
+  socket.emit('mudar_tema_stop', selMudarTemaStop.value);
+});
+document.getElementById('btn-proxima-rodada').addEventListener('click', () => socket.emit('proxima_rodada_stop'));
+document.getElementById('btn-zerar-pontos').addEventListener('click', () => {
+  if(confirm('Zerar todos os pontos do Stop?')) socket.emit('zerar_pontos_stop');
+});
 
-    // ================================================================
-    // ATUALIZAR UI GERAL
-    // ================================================================
-    function atualizarUI(estado) {
-        letraAtualEl.textContent = estado.letraAtual || '?';
-        if (estado.jogo === 'stop') {
-            temaAtualEl.textContent = estado.temaSelecionado || 'Nenhum';
-        } else {
-            temaAtualEl.textContent = estado.temaBingo || 'Nenhum';
-        }
-        rodadaAtualEl.textContent = estado.rodada || 0;
-        // Atualiza modo jogador
-        atualizarModoJogador(estado);
-    }
+document.getElementById('btn-validar-bingo').addEventListener('click', () => {
+  const nome = prompt('Nome do jogador que pediu BINGO:');
+  if(nome && nome.trim()) socket.emit('validar_bingo', nome.trim());
+});
+document.getElementById('btn-limpar-palavras').addEventListener('click', () => {
+  if(confirm('Limpar todas as palavras enviadas?')) socket.emit('limpar_palavras_bingo');
+});
 
-    // ================================================================
-    // MODO JOGADOR
-    // ================================================================
-    function atualizarModoJogador(estado) {
-        jogadorLetra.textContent = estado.letraAtual || '?';
-        if (estado.jogo === 'stop') {
-            jogadorTema.textContent = estado.temaSelecionado || 'Tema';
-        } else {
-            jogadorTema.textContent = estado.temaBingo || 'Tema';
-        }
+document.getElementById('btn-finalizar').addEventListener('click', () => {
+  if(confirm('Finalizar o jogo e abrir o pódio?')) socket.emit('finalizar_jogo');
+});
+document.getElementById('btn-config').addEventListener('click', () => {
+  if(confirm('Voltar para a configuração? O jogo atual continua salvo no servidor.')){
+    mostrarTela('tela-config');
+  }
+});
 
-        if (estado.jogo === 'stop') {
-            jogadorAcoes.innerHTML = `
-                <div class="botoes-pontos">
-                    <button class="btn-ponto" data-pontos="10">10</button>
-                    <button class="btn-ponto" data-pontos="5">5</button>
-                    <button class="btn-ponto" data-pontos="0">0</button>
-                </div>
-                <div style="font-size:14px; color:rgba(255,255,255,0.3);">Selecione os pontos que você fez neste tema.</div>
-            `;
-            document.querySelectorAll('.btn-ponto').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const pontos = parseInt(this.dataset.pontos);
-                    // Pede o nome do jogador (só na primeira vez)
-                    if (!meuNome) {
-                        const nome = prompt('Digite seu nome:');
-                        if (!nome) return;
-                        meuNome = nome;
-                    }
-                    socket.emit('marcar_ponto_stop', {
-                        jogador: meuNome,
-                        tema: estado.temaSelecionado,
-                        pontos: pontos
-                    });
-                    document.querySelectorAll('.btn-ponto').forEach(b => b.classList.remove('selecionado'));
-                    this.classList.add('selecionado');
-                });
-            });
-        } else { // Bingo
-            // Para o Bingo, o jogador vê a letra, o tema, um campo para escrever a palavra
-            // e um botão BINGO.
-            jogadorAcoes.innerHTML = `
-                <div style="margin-bottom:10px;">
-                    <div style="font-size:14px; color:rgba(255,255,255,0.4);">Escreva uma palavra que comece com a letra e pertença ao tema.</div>
-                    <div class="input-palavra">
-                        <input type="text" id="inputPalavraBingo" placeholder="Palavra" />
-                        <button id="btnEnviarPalavraBingo">Enviar</button>
-                    </div>
-                </div>
-                <button class="btn-bingo" id="btnBingoJogador">🎰 BINGO!</button>
-            `;
-            document.getElementById('btnEnviarPalavraBingo').addEventListener('click', function() {
-                const palavra = document.getElementById('inputPalavraBingo').value.trim();
-                if (!palavra) { alert('Digite uma palavra.'); return; }
-                if (!meuNome) {
-                    const nome = prompt('Digite seu nome:');
-                    if (!nome) return;
-                    meuNome = nome;
-                }
-                // Envia a palavra para o servidor (associada ao jogador)
-                // Mas no Bingo, a palavra é para a letra atual.
-                // O servidor armazena a palavra para validação.
-                socket.emit('enviar_palavra_bingo', {
-                    jogador: meuNome,
-                    palavra: palavra,
-                    letra: estado.letraAtual
-                });
-                document.getElementById('inputPalavraBingo').value = '';
-                alert('Palavra enviada!');
-            });
-            document.getElementById('btnBingoJogador').addEventListener('click', function() {
-                if (!meuNome) {
-                    const nome = prompt('Digite seu nome:');
-                    if (!nome) return;
-                    meuNome = nome;
-                }
-                // O jogador clicou em BINGO: solicita validação ao admin.
-                // O admin recebe um pedido e vai validar.
-                socket.emit('solicitar_validacao_bingo', meuNome);
-                alert('Solicitação de BINGO enviada ao administrador.');
-            });
-        }
-    }
+document.getElementById('btn-reiniciar').addEventListener('click', () => {
+  socket.emit('reiniciar_jogo');
+  mostrarTela('tela-menu');
+});
 
-    // ================================================================
-    // ADMIN CONTROLS
-    // ================================================================
-    function montarAdminControls(estado) {
-        if (!estado) return;
-        if (estado.jogo === 'stop') {
-            adminControls.innerHTML = `
-                <div class="linha">
-                    <label>Tema:</label>
-                    <select id="selectTemaAdmin">
-                        ${['Person','Food','Place','Color','Job','Verb','Object','Animal'].map(t => 
-                            `<option value="${t}" ${t === estado.temaSelecionado ? 'selected' : ''}>${t}</option>`
-                        ).join('')}
-                    </select>
-                    <button class="btn-admin" id="btnMudarTemaAdmin">Alterar</button>
-                </div>
-                <div class="linha">
-                    <button class="btn-admin success" id="btnProximaRodada">⏭ Próxima rodada</button>
-                    <button class="btn-admin danger" id="btnZerarPontos">🔄 Zerar pontos</button>
-                </div>
-                <div id="adminBingoContainer"></div>
-            `;
-            document.getElementById('btnMudarTemaAdmin').addEventListener('click', function() {
-                const tema = document.getElementById('selectTemaAdmin').value;
-                socket.emit('mudar_tema_stop', tema);
-            });
-            document.getElementById('btnProximaRodada').addEventListener('click', function() {
-                socket.emit('proxima_rodada_stop');
-            });
-            document.getElementById('btnZerarPontos').addEventListener('click', function() {
-                if (confirm('Zerar todos os pontos?')) socket.emit('zerar_pontos_stop');
-            });
-        } else { // Bingo
-            adminControls.innerHTML = `
-                <div class="linha">
-                    <label>Tema:</label>
-                    <span style="color:#f4a261; font-weight:700;">${estado.temaBingo || 'Nenhum'}</span>
-                </div>
-                <div class="linha">
-                    <button class="btn-admin success" id="btnValidarBingoAdmin">✅ Validar Bingo</button>
-                </div>
-                <div id="adminBingoContainer"></div>
-            `;
-            document.getElementById('btnValidarBingoAdmin').addEventListener('click', function() {
-                // O admin vai validar o bingo do jogador que pediu
-                // Vamos abrir um prompt para o admin digitar as palavras da linha/coluna.
-                // Mas para simplificar, vamos pedir o nome do jogador e depois as palavras.
-                const jogador = prompt('Nome do jogador que pediu BINGO:');
-                if (!jogador) return;
-                // Pede as palavras para cada letra da linha/coluna (o servidor já tem as palavras enviadas, mas podemos pedir novamente)
-                // Na verdade, o servidor já armazenou as palavras enviadas pelo jogador.
-                // Então podemos simplesmente solicitar a validação no servidor.
-                socket.emit('validar_bingo', jogador);
-            });
-        }
-    }
+// ---------- TELA JOGO: controles JOGADOR ----------
+document.querySelectorAll('.btn-ponto').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const nome = getMeuNome();
+    if(!nome) return;
+    document.querySelectorAll('.btn-ponto').forEach(b => b.classList.remove('selecionado'));
+    btn.classList.add('selecionado');
+    socket.emit('marcar_ponto_stop', { nome, pontos: Number(btn.dataset.pontos) });
+  });
+});
 
-    // ================================================================
-    // STATUS
-    // ================================================================
-    function atualizarStatus(estado) {
-        let html = '';
-        if (estado.jogo === 'stop') {
-            html = `<div style="font-weight:600; margin-bottom:8px;">📊 Pontuação (tema: ${estado.temaSelecionado})</div>`;
-            estado.jogadores.forEach(j => {
-                const pts = estado.pontosStop[j.nome]?.[estado.temaSelecionado] || 0;
-                html += `<div class="linha-status"><span>${j.nome}</span><span>${pts} pts</span></div>`;
-            });
-            html += `<div style="margin-top:8px; border-top:1px solid rgba(255,255,255,0.04); padding-top:8px; font-weight:600;">Total</div>`;
-            estado.jogadores.forEach(j => {
-                const total = Object.values(estado.pontosStop[j.nome] || {}).reduce((a,b) => a+b, 0);
-                html += `<div class="linha-status"><span>${j.nome}</span><span>${total} pts</span></div>`;
-            });
-        } else {
-            html = `<div style="font-weight:600;">🎰 Bingo - Tema: ${estado.temaBingo}</div>`;
-            estado.jogadores.forEach(j => {
-                html += `<div class="linha-status"><span>${j.nome}</span><span>${j.pontos} pts</span></div>`;
-            });
-        }
-        statusBox.innerHTML = html;
-    }
+document.getElementById('btn-enviar-palavra').addEventListener('click', enviarPalavra);
+document.getElementById('input-palavra').addEventListener('keydown', e => {
+  if(e.key === 'Enter') enviarPalavra();
+});
+function enviarPalavra(){
+  const nome = getMeuNome();
+  if(!nome) return;
+  const input = document.getElementById('input-palavra');
+  const palavra = input.value.trim();
+  if(!palavra) return;
+  socket.emit('enviar_palavra_bingo', { nome, palavra });
+  input.value = '';
+}
 
-    // ================================================================
-    // BOTÕES GLOBAIS
-    // ================================================================
-    btnGirar.addEventListener('click', function() {
-        socket.emit('girar_roleta');
-    });
+document.getElementById('btn-bingo').addEventListener('click', () => {
+  const nome = getMeuNome();
+  if(!nome) return;
+  socket.emit('solicitar_validacao_bingo', { nome });
+  alert('Solicitação de BINGO enviada ao administrador! 🎉');
+});
 
-    btnFinalizar.addEventListener('click', function() {
-        if (confirm('Finalizar jogo e ir para o pódio?')) {
-            socket.emit('finalizar_jogo');
-        }
-    });
+// ---------- ROLETA (canvas + luzes) ----------
+const canvas = document.getElementById('roleta-canvas');
+const ctx = canvas.getContext('2d');
+const dpr = window.devicePixelRatio || 1;
+canvas.width = 500 * dpr;
+canvas.height = 500 * dpr;
+ctx.scale(dpr, dpr);
 
-    btnVoltarConfig.addEventListener('click', function() {
-        if (confirm('Voltar à configuração? O progresso será perdido.')) {
-            mostrarTela('telaConfig');
-        }
-    });
+function desenharRoleta(){
+  const tamanho = 500;
+  const cx = tamanho/2, cy = tamanho/2, raio = tamanho/2 - 6;
+  const sliceAngle = (Math.PI*2)/26;
+  ctx.clearRect(0,0,tamanho,tamanho);
+  for(let i=0;i<26;i++){
+    const start = -Math.PI/2 + i*sliceAngle;
+    const end = start + sliceAngle;
+    ctx.beginPath();
+    ctx.moveTo(cx,cy);
+    ctx.arc(cx,cy,raio,start,end);
+    ctx.closePath();
+    ctx.fillStyle = i % 2 === 0 ? '#f4f4fb' : '#e94560';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
 
-    btnVoltarInicio.addEventListener('click', function() {
-        mostrarTela('telaInicial');
-    });
+    const mid = start + sliceAngle/2;
+    const lx = cx + Math.cos(mid) * raio * 0.8;
+    const ly = cy + Math.sin(mid) * raio * 0.8;
+    ctx.save();
+    ctx.translate(lx,ly);
+    ctx.rotate(mid + Math.PI/2);
+    ctx.fillStyle = i % 2 === 0 ? '#1a1a2e' : '#ffffff';
+    ctx.font = 'bold 22px Segoe UI, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.shadowColor = 'rgba(0,0,0,0.4)';
+    ctx.shadowBlur = 3;
+    ctx.fillText(LETRAS[i], 0, 0);
+    ctx.restore();
+  }
+  // centro dourado
+  const grad = ctx.createRadialGradient(cx,cy,4,cx,cy,32);
+  grad.addColorStop(0, '#fff4c2');
+  grad.addColorStop(1, '#ffd700');
+  ctx.beginPath();
+  ctx.arc(cx,cy,30,0,Math.PI*2);
+  ctx.fillStyle = grad;
+  ctx.fill();
+  ctx.strokeStyle = '#1a1a2e';
+  ctx.lineWidth = 3;
+  ctx.stroke();
+}
+desenharRoleta();
 
-    // ================================================================
-    // INICIALIZAÇÃO
-    // ================================================================
-    mostrarTela('telaInicial');
-    console.log('Cliente pronto.');
+// luzes ao redor da roleta
+const luzesContainer = document.getElementById('luzes');
+const NUM_LUZES = 24;
+for(let i=0;i<NUM_LUZES;i++){
+  const ang = (i / NUM_LUZES) * Math.PI * 2;
+  const raioPct = 48; // % do raio do wrap
+  const x = 50 + raioPct * Math.cos(ang);
+  const y = 50 + raioPct * Math.sin(ang);
+  const luz = document.createElement('div');
+  luz.className = 'luz';
+  luz.style.left = x + '%';
+  luz.style.top = y + '%';
+  luz.style.animationDelay = (i * (1.6/NUM_LUZES)) + 's';
+  luzesContainer.appendChild(luz);
+}
+
+function setLuzesGirando(ativo){
+  document.querySelectorAll('.luz').forEach(l => l.classList.toggle('girando', ativo));
+}
+
+function girarPara(letra){
+  const idx = LETRAS.indexOf(letra);
+  if(idx < 0) return;
+  const sliceAngleDeg = 360/26;
+  const midDeg = -90 + idx*sliceAngleDeg + sliceAngleDeg/2;
+  let deltaMod = ((-90 - midDeg) % 360 + 360) % 360;
+  const voltas = 5 + Math.floor(Math.random()*8); // 5 a 12 voltas
+  const baseAtual = currentRotation - (currentRotation % 360);
+  let alvo = baseAtual + voltas*360 + deltaMod;
+  if(alvo <= currentRotation) alvo += 360;
+  currentRotation = alvo;
+  setLuzesGirando(true);
+  canvas.style.transform = `rotate(${currentRotation}deg)`;
+  setTimeout(() => setLuzesGirando(false), 4300);
+}
+
+// ---------- Animações auxiliares de texto ----------
+function flipTexto(el, novoValor){
+  if(!el) return;
+  const atual = el.textContent;
+  el.textContent = novoValor;
+  if(atual !== novoValor){
+    el.classList.remove('flip');
+    void el.offsetWidth; // força reflow para reiniciar a animação
+    el.classList.add('flip');
+  }
+}
+function pulsarTexto(el, novoValor){
+  if(!el) return;
+  const atual = el.textContent;
+  el.textContent = novoValor;
+  if(atual !== novoValor){
+    el.classList.remove('pulso');
+    void el.offsetWidth;
+    el.classList.add('pulso');
+  }
+}
+
+// ---------- Renderização do estado ----------
+function aplicarEstado(novoEstado){
+  estado = novoEstado;
+
+  flipTexto(document.getElementById('admin-letra'), estado.letraAtual || '-');
+  flipTexto(document.getElementById('player-letra'), estado.letraAtual || '-');
+  pulsarTexto(document.getElementById('admin-tema'), estado.temaAtual || '-');
+  pulsarTexto(document.getElementById('player-tema'), estado.temaAtual || '-');
+  pulsarTexto(document.getElementById('admin-rodada'), 'Rodada ' + estado.rodada);
+
+  if(estado.letraAtual && estado.letraAtual !== ultimaLetraGirada){
+    ultimaLetraGirada = estado.letraAtual;
+    girarPara(estado.letraAtual);
+  }
+
+  const ehStop = estado.jogo === 'stop';
+  document.getElementById('painel-stop-admin').style.display = ehStop ? 'block' : 'none';
+  document.getElementById('painel-bingo-admin').style.display = ehStop ? 'none' : 'block';
+  document.getElementById('player-stop').style.display = ehStop ? 'block' : 'none';
+  document.getElementById('player-bingo').style.display = ehStop ? 'none' : 'block';
+
+  if(!ehStop){
+    document.getElementById('bingo-tema-admin').textContent = estado.temaAtual || '-';
+  }
+
+  const lista = document.getElementById('lista-jogadores');
+  lista.innerHTML = estado.jogadores.map((j,i) => `
+    <li style="animation-delay:${i*0.04}s">
+      <span>${j.nome}</span>
+      <button data-nome="${j.nome}" class="btn-remover-jogador">✕</button>
+    </li>
+  `).join('') || '<li style="justify-content:center; color:var(--texto-fraco);">Nenhum jogador ainda</li>';
+  document.querySelectorAll('.btn-remover-jogador').forEach(btn => {
+    btn.addEventListener('click', () => socket.emit('remover_jogador', btn.dataset.nome));
+  });
+
+  const statusStop = document.getElementById('status-stop');
+  statusStop.innerHTML = estado.jogadores.map((j,i) => {
+    const detalhe = TEMAS.map(t => `${t}: ${j.pontosStop[t] || 0}`).join(' · ');
+    return `<div class="status-item" style="animation-delay:${i*0.04}s">
+      <div>
+        <div class="nome">${j.nome}</div>
+        <div class="detalhe">${detalhe}</div>
+      </div>
+      <div class="pontos">${j.totalStop} pts</div>
+    </div>`;
+  }).join('') || '<p style="color:var(--texto-fraco);">Nenhum jogador ainda</p>';
+
+  const statusBingo = document.getElementById('status-bingo');
+  statusBingo.innerHTML = estado.jogadores.map((j,i) => {
+    return `<div class="status-item" style="animation-delay:${i*0.04}s">
+      <div>
+        <div class="nome">${j.nome}</div>
+        <div class="detalhe">${j.palavras.length} palavra(s) enviada(s)</div>
+      </div>
+      <div class="pontos">${j.pontosBingo} pts</div>
+    </div>`;
+  }).join('') || '<p style="color:var(--texto-fraco);">Nenhum jogador ainda</p>';
+
+  const meuNome = localStorage.getItem('sb_nome_jogador');
+  const eu = estado.jogadores.find(j => j.nome === meuNome);
+  const listaPalavras = document.getElementById('palavras-enviadas-player');
+  if(eu && listaPalavras){
+    listaPalavras.innerHTML = eu.palavras.map(p => `<div class="palavra-chip">${p.letra}: ${p.palavra}</div>`).join('');
+  }
+}
+
+socket.on('estado_inicial', aplicarEstado);
+socket.on('estado_atualizado', aplicarEstado);
+
+socket.on('bingo_valido', (dados) => {
+  const linhas = dados.detalhes.map(d => `${d.letra}: "${d.palavra}" ✅`).join('\n');
+  alert(`🎉 BINGO válido para ${dados.nome}!\n\n${linhas}\n\nPontos de Bingo: ${dados.pontosBingo}`);
+});
+socket.on('bingo_invalido', (dados) => {
+  const linhas = dados.detalhes.map(d => `${d.letra}: "${d.palavra}" ${d.correta ? '✅' : `❌ (esperado: ${d.esperado || '—'})`}`).join('\n');
+  alert(`❌ BINGO inválido para ${dados.nome}.\n\n${linhas}\n\nPontos de Bingo: ${dados.pontosBingo}`);
+});
+socket.on('erro_bingo', (dados) => {
+  alert('⚠️ ' + dados.mensagem);
+});
+
+socket.on('solicitacao_bingo', (dados) => {
+  const card = document.getElementById('card-notificacoes');
+  card.style.display = 'block';
+  const lista = document.getElementById('notificacoes-lista');
+  const item = document.createElement('div');
+  item.className = 'notificacao';
+  item.innerHTML = `<span>🔔 <strong>${dados.nome}</strong> pediu BINGO!</span>
+    <button class="btn-secundario btn-validar-rapido" data-nome="${dados.nome}">Validar</button>`;
+  lista.prepend(item);
+  item.querySelector('.btn-validar-rapido').addEventListener('click', () => {
+    socket.emit('validar_bingo', dados.nome);
+    item.remove();
+  });
+});
+
+socket.on('jogo_finalizado', (ranking) => {
+  mostrarTela('tela-podio');
+  renderizarPodio(ranking);
+  lancarConfetes();
+});
+
+function renderizarPodio(ranking){
+  const container = document.getElementById('podio-container');
+  const medalhas = ['🥇','🥈','🥉'];
+  const classes = ['ouro','prata','bronze'];
+  container.innerHTML = ranking.map((j, i) => {
+    const pontos = estado && estado.jogo === 'stop' ? j.totalStop : j.pontosBingo;
+    const classe = classes[i] || '';
+    const medalha = medalhas[i] || `${i+1}º`;
+    return `<div class="podio-item ${classe}" style="animation-delay:${i*0.15}s;">
+      <div class="posicao">${medalha}</div>
+      <div class="nome">${j.nome}</div>
+      <div class="pontos">${pontos} pts</div>
+    </div>`;
+  }).join('');
+}
+
+function lancarConfetes(){
+  const cont = document.getElementById('confetti-container');
+  const cores = ['#e94560','#f4a261','#4ecdc4','#ffd700'];
+  for(let i=0;i<100;i++){
+    const c = document.createElement('div');
+    c.className = 'confete';
+    const tamanho = 6 + Math.random()*8;
+    c.style.width = tamanho+'px';
+    c.style.height = (tamanho*0.4)+'px';
+    c.style.left = Math.random()*100+'vw';
+    c.style.background = cores[Math.floor(Math.random()*cores.length)];
+    c.style.animationDuration = (2.5 + Math.random()*2.5)+'s';
+    cont.appendChild(c);
+    setTimeout(() => c.remove(), 5500);
+  }
+}
 </script>
 </body>
 </html>
