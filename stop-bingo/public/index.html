@@ -7,83 +7,73 @@
 <script src="/socket.io/socket.io.js"></script>
 <style>
   :root{
-    --bg-1:#0d0d1a;
-    --bg-2:#1a1a2e;
-    --bg-3:#16213e;
-    --rosa:#e94560;
-    --rosa-esc:#8f2440;
-    --laranja:#f4a261;
-    --agua:#4ecdc4;
-    --dourado:#ffd700;
-    --texto:#f4f4fb;
-    --texto-fraco:#a9a9c2;
-    --vidro:rgba(255,255,255,0.06);
-    --vidro-borda:rgba(255,255,255,0.14);
-    --verde:#2ecc71;
+    --bg-1:#0a0a14; --bg-2:#151527; --bg-3:#101b33;
+    --rosa:#e94560; --rosa-esc:#8f2440; --laranja:#f4a261;
+    --agua:#4ecdc4; --dourado:#ffd700; --verde:#2ecc71; --azul:#5b8def;
+    --texto:#f4f4fb; --texto-fraco:#a9a9c2;
+    --vidro:rgba(255,255,255,0.06); --vidro-borda:rgba(255,255,255,0.14);
+    --raio:16px;
   }
   *{box-sizing:border-box; margin:0; padding:0;}
   html,body{height:100%;}
   body{
     font-family:"Segoe UI", system-ui, -apple-system, sans-serif;
-    color:var(--texto);
-    min-height:100vh;
-    overflow-x:hidden;
-    position:relative;
+    color:var(--texto); min-height:100vh; overflow-x:hidden; position:relative;
     background:
-      radial-gradient(circle at 12% 18%, rgba(233,69,96,0.22), transparent 42%),
-      radial-gradient(circle at 88% 82%, rgba(78,205,196,0.20), transparent 42%),
-      radial-gradient(circle at 50% 100%, rgba(255,215,0,0.08), transparent 55%),
+      radial-gradient(circle at 12% 18%, rgba(233,69,96,0.20), transparent 42%),
+      radial-gradient(circle at 88% 82%, rgba(78,205,196,0.18), transparent 42%),
+      radial-gradient(circle at 50% 100%, rgba(255,215,0,0.07), transparent 55%),
       linear-gradient(160deg, var(--bg-1), var(--bg-3), var(--bg-2));
     background-size:200% 200%, 200% 200%, 200% 200%, 300% 300%;
-    animation:bgFlow 22s ease-in-out infinite;
+    animation:bgFlow 24s ease-in-out infinite;
   }
   @keyframes bgFlow{
     0%{background-position:0% 0%, 100% 100%, 50% 100%, 0% 50%;}
     50%{background-position:100% 100%, 0% 0%, 50% 0%, 100% 50%;}
     100%{background-position:0% 0%, 100% 100%, 50% 100%, 0% 50%;}
   }
-
   #particulas{position:fixed; inset:0; pointer-events:none; z-index:0; overflow:hidden;}
-  .particula{
-    position:absolute; bottom:-40px; border-radius:50%;
-    background:radial-gradient(circle, rgba(255,255,255,0.5), transparent 70%);
-    animation:subir linear infinite;
-  }
-  @keyframes subir{
-    from{transform:translateY(0) translateX(0); opacity:0;}
-    10%{opacity:0.7;} 90%{opacity:0.5;}
-    to{transform:translateY(-115vh) translateX(var(--drift,20px)); opacity:0;}
-  }
+  .particula{position:absolute; bottom:-40px; border-radius:50%; background:radial-gradient(circle, rgba(255,255,255,0.5), transparent 70%); animation:subir linear infinite;}
+  @keyframes subir{ from{transform:translateY(0) translateX(0); opacity:0;} 10%{opacity:0.7;} 90%{opacity:0.5;} to{transform:translateY(-115vh) translateX(var(--drift,20px)); opacity:0;} }
 
-  #aviso-servidor{
-    position:fixed; top:0; left:0; right:0; z-index:2000;
-    background:linear-gradient(90deg, #7a1f31, var(--rosa));
-    color:#fff; padding:12px 20px; text-align:center; font-size:0.9rem;
-    box-shadow:0 4px 14px rgba(0,0,0,0.4);
-  }
+  #aviso-servidor{position:fixed; top:0; left:0; right:0; z-index:2500; background:linear-gradient(90deg, #7a1f31, var(--rosa)); color:#fff; padding:12px 20px; text-align:center; font-size:0.9rem; box-shadow:0 4px 14px rgba(0,0,0,0.4);}
   #aviso-servidor code{background:rgba(0,0,0,0.25); padding:2px 6px; border-radius:6px;}
+
+  /* ---------- Cabeçalho persistente da sala ---------- */
+  #cabecalho-sala{
+    display:none; align-items:center; justify-content:space-between; gap:12px;
+    padding:12px 20px; background:rgba(10,10,20,0.55); backdrop-filter:blur(14px);
+    border-bottom:1px solid var(--vidro-borda); position:sticky; top:0; z-index:500;
+  }
+  .marca{display:flex; align-items:center; gap:8px; font-weight:800; font-size:1.05rem; white-space:nowrap;}
+  .marca .ponto{color:var(--rosa);}
+  .codigo-sala-badge{
+    display:flex; align-items:center; gap:8px; background:var(--vidro); border:1px solid var(--vidro-borda);
+    padding:6px 8px 6px 14px; border-radius:30px; font-family:'Courier New', monospace; font-weight:800; letter-spacing:2px;
+  }
+  .codigo-sala-badge .valor{color:var(--dourado); font-size:1.05rem;}
+  .codigo-sala-badge button{
+    background:var(--agua); color:#04302c; border-radius:20px; padding:6px 12px; font-size:0.78rem; font-weight:700;
+  }
+  .codigo-sala-badge button:hover{filter:brightness(1.1);}
+  #btn-encerrar-sala-header{background:transparent; color:var(--texto-fraco); font-size:0.82rem; text-decoration:underline; padding:4px;}
+  #btn-encerrar-sala-header:hover{color:var(--rosa);}
 
   #app{min-height:100vh; display:flex; flex-direction:column; position:relative; z-index:1;}
   .tela{display:none; flex:1; flex-direction:column; align-items:center; padding:24px;}
   .tela.active{display:flex; animation:entrarTela .55s cubic-bezier(.2,.8,.3,1);}
   @keyframes entrarTela{ from{opacity:0; transform:translateY(18px) scale(0.98);} to{opacity:1; transform:translateY(0) scale(1);} }
 
-  h1{
-    font-size:2.6rem; margin-bottom:8px; text-align:center; font-weight:800;
+  h1{font-size:2.6rem; margin-bottom:8px; text-align:center; font-weight:800;
     background:linear-gradient(90deg, var(--rosa), var(--laranja), var(--dourado), var(--rosa));
-    background-size:300% auto;
-    -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;
-    animation:brilharTitulo 6s linear infinite;
-  }
+    background-size:300% auto; -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;
+    animation:brilharTitulo 6s linear infinite;}
   @keyframes brilharTitulo{ to{ background-position:300% center; } }
   h2{font-size:1.7rem; margin-bottom:20px; text-align:center; color:var(--texto);}
   h3{font-size:1.1rem; margin-bottom:12px; color:var(--agua); letter-spacing:.3px;}
+  .subtitulo{color:var(--texto-fraco); text-align:center; margin-bottom:8px;}
 
-  button{
-    font-family:inherit; cursor:pointer; border:none; border-radius:12px;
-    color:var(--texto); font-weight:600; position:relative; overflow:hidden;
-    transition:transform .15s ease, box-shadow .15s ease, filter .15s ease;
-  }
+  button{font-family:inherit; cursor:pointer; border:none; border-radius:12px; color:var(--texto); font-weight:600; position:relative; overflow:hidden; transition:transform .15s ease, box-shadow .15s ease, filter .15s ease;}
   button:active{transform:translateY(2px);}
   button:disabled{opacity:.5; cursor:not-allowed; filter:grayscale(.4);}
   .ripple{position:absolute; border-radius:50%; transform:scale(0); background:rgba(255,255,255,0.45); pointer-events:none; animation:rippleAnim .6s ease-out forwards;}
@@ -97,42 +87,53 @@
   .btn-perigo:hover{filter:brightness(1.1);}
   .btn-ouro{background:linear-gradient(135deg, var(--dourado), #b8860b); color:#2a1e00; box-shadow:0 4px 0 #8a6300, 0 10px 20px rgba(255,215,0,0.25);}
   .btn-ouro:hover{filter:brightness(1.08); transform:translateY(-2px);}
+  .btn-azul{background:linear-gradient(135deg, var(--azul), #2f5fc4); box-shadow:0 4px 0 #1f3f8a;}
+  .btn-azul:hover{filter:brightness(1.1);}
+  .btn-bloco{width:100%; padding:16px; font-size:1rem;}
 
-  /* ---------- Menu ---------- */
-  #tela-menu{justify-content:center; gap:26px;}
-  #tela-menu p{color:var(--texto-fraco); margin-bottom:6px; animation:fadeIn .8s ease;}
-  .menu-opcoes{display:flex; gap:26px; flex-wrap:wrap; justify-content:center;}
-  @keyframes fadeIn{from{opacity:0;} to{opacity:1;}}
-  .btn-menu{
-    width:190px; height:190px; border-radius:26px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px;
-    background:var(--vidro); border:1px solid var(--vidro-borda); backdrop-filter:blur(10px);
-    box-shadow:0 12px 32px rgba(0,0,0,0.4); font-size:2.8rem; animation:apareceMenu .6s cubic-bezier(.2,.9,.3,1.2) backwards;
+  /* ---------- Tela inicial (lobby) ---------- */
+  #tela-inicial{justify-content:center; gap:10px; text-align:center;}
+  .logo-inicial{font-size:3.4rem; margin-bottom:4px; animation:flutuarLogo 3s ease-in-out infinite;}
+  @keyframes flutuarLogo{ 0%,100%{transform:translateY(0);} 50%{transform:translateY(-8px);} }
+  .cards-inicial{display:flex; gap:22px; flex-wrap:wrap; justify-content:center; margin-top:18px;}
+  .card-inicial{
+    width:260px; padding:30px 24px; border-radius:22px; background:var(--vidro); border:1px solid var(--vidro-borda);
+    backdrop-filter:blur(12px); box-shadow:0 14px 34px rgba(0,0,0,0.4); text-align:center;
+    animation:apareceMenu .6s cubic-bezier(.2,.9,.3,1.2) backwards; transition:transform .2s ease, border-color .2s ease;
+    display:flex; flex-direction:column; align-items:center; gap:10px;
   }
-  .btn-menu:nth-child(1){animation-delay:.05s;}
-  .btn-menu:nth-child(2){animation-delay:.2s;}
-  @keyframes apareceMenu{ from{opacity:0; transform:translateY(30px) scale(.85);} to{opacity:1; transform:translateY(0) scale(1);} }
-  .btn-menu span{font-size:1rem; color:var(--texto-fraco); font-weight:500;}
-  .btn-menu:hover{border-color:var(--agua); transform:translateY(-6px) scale(1.04) rotate(-1deg); box-shadow:0 20px 40px rgba(78,205,196,0.3);}
+  .card-inicial:nth-child(1){animation-delay:.05s;}
+  .card-inicial:nth-child(2){animation-delay:.2s;}
+  @keyframes apareceMenu{ from{opacity:0; transform:translateY(30px) scale(.9);} to{opacity:1; transform:translateY(0) scale(1);} }
+  .card-inicial:hover{transform:translateY(-6px); border-color:var(--agua); box-shadow:0 20px 40px rgba(78,205,196,0.25);}
+  .card-inicial .icone{font-size:2.6rem;}
+  .card-inicial p{color:var(--texto-fraco); font-size:0.88rem; line-height:1.4;}
+
+  .form-entrar{
+    width:100%; max-width:340px; display:flex; flex-direction:column; gap:12px; margin-top:8px;
+    animation:entrarCard .35s ease;
+  }
+  .form-entrar input{text-align:center; font-size:1.1rem;}
+  #input-codigo-sala{letter-spacing:6px; font-family:'Courier New', monospace; font-weight:800; text-transform:uppercase;}
+  .erro-form{color:var(--rosa); font-size:0.85rem; min-height:18px; animation:entrarLista .3s ease;}
+  .link-voltar{background:transparent; color:var(--texto-fraco); text-decoration:underline; font-size:0.85rem; padding:6px;}
+  .link-voltar:hover{color:var(--texto);}
 
   /* ---------- Config ---------- */
-  #tela-config{gap:20px; width:100%; max-width:720px; margin:0 auto;}
-  .card{
-    width:100%; background:var(--vidro); border:1px solid var(--vidro-borda); border-radius:18px;
-    padding:20px; backdrop-filter:blur(10px); animation:entrarCard .5s ease backwards;
-    transition:transform .2s ease, box-shadow .2s ease;
-  }
+  #tela-config, #tela-aguardando{gap:20px; width:100%; max-width:720px; margin:0 auto;}
+  .card{width:100%; background:var(--vidro); border:1px solid var(--vidro-borda); border-radius:18px; padding:20px; backdrop-filter:blur(10px); animation:entrarCard .5s ease backwards; transition:transform .2s ease, box-shadow .2s ease;}
   .card:hover{box-shadow:0 8px 26px rgba(0,0,0,0.3);}
   @keyframes entrarCard{ from{opacity:0; transform:translateY(16px);} to{opacity:1; transform:translateY(0);} }
   .add-jogador{display:flex; gap:10px; margin-bottom:14px;}
   .add-jogador input{flex:1;}
-  input, select{
-    padding:12px 14px; border-radius:10px; border:1px solid var(--vidro-borda);
-    background:rgba(255,255,255,0.05); color:var(--texto); font-size:1rem; outline:none;
-    transition:border-color .15s ease, box-shadow .15s ease;
-  }
+  input, select{padding:12px 14px; border-radius:10px; border:1px solid var(--vidro-borda); background:rgba(255,255,255,0.05); color:var(--texto); font-size:1rem; outline:none; transition:border-color .15s ease, box-shadow .15s ease;}
   input:focus, select:focus{border-color:var(--agua); box-shadow:0 0 0 3px rgba(78,205,196,0.2);}
-  #lista-jogadores{list-style:none; display:flex; flex-direction:column; gap:8px;}
-  #lista-jogadores li{display:flex; justify-content:space-between; align-items:center; background:rgba(255,255,255,0.05); padding:10px 14px; border-radius:10px; animation:entrarLista .35s ease backwards;}
+  /* A lista suspensa nativa do <select> nem sempre herda o CSS escuro da página
+     (o navegador renderiza as opções com estilo próprio) — forçamos texto escuro
+     sobre fundo claro nas opções para nunca ficar "branco sobre branco". */
+  select option{ color:#12121f; background:#ffffff; }
+  #lista-jogadores, #lista-jogadores-espera{list-style:none; display:flex; flex-direction:column; gap:8px;}
+  #lista-jogadores li, #lista-jogadores-espera li{display:flex; justify-content:space-between; align-items:center; background:rgba(255,255,255,0.05); padding:10px 14px; border-radius:10px; animation:entrarLista .35s ease backwards;}
   @keyframes entrarLista{ from{opacity:0; transform:translateX(-14px);} to{opacity:1; transform:translateX(0);} }
   #lista-jogadores button{background:transparent; color:var(--rosa); font-size:1.1rem; padding:2px 8px; border-radius:8px;}
   #lista-jogadores button:hover{background:rgba(233,69,96,0.2);}
@@ -142,12 +143,19 @@
   label{display:block; margin-top:8px; font-size:0.9rem; color:var(--texto-fraco);}
   label select{width:100%; margin-top:6px;}
   .config-botoes{display:flex; gap:12px; justify-content:space-between; width:100%;}
+  .jogo-vazio-selecao{display:flex; gap:14px; justify-content:center; margin-bottom:6px;}
+  .btn-jogo-toggle{padding:12px 20px; background:var(--vidro); border:2px solid var(--vidro-borda); border-radius:14px; font-weight:700;}
+  .btn-jogo-toggle.ativo{border-color:var(--agua); background:rgba(78,205,196,0.15); box-shadow:0 0 14px rgba(78,205,196,0.3);}
+
+  /* ---------- Tela de espera (jogador) ---------- */
+  #tela-aguardando{align-items:center; text-align:center;}
+  .icone-aguardando{font-size:3.6rem; animation:girarSuave 3s linear infinite;}
+  @keyframes girarSuave{ to{ transform:rotate(360deg); } }
 
   /* ---------- Tela de Jogo ---------- */
   #tela-jogo{width:100%; align-items:stretch; padding:0;}
   .admin-view{display:flex; flex-wrap:wrap; gap:24px; padding:24px; max-width:1200px; margin:0 auto; width:100%;}
   .roleta-coluna{flex:1; min-width:320px; display:flex; flex-direction:column; align-items:center; gap:18px;}
-
   .roleta-wrap{position:relative; width:min(320px, 70vw); height:min(320px, 70vw); display:flex; align-items:center; justify-content:center;}
   .luzes{position:absolute; inset:0;}
   .luz{position:absolute; width:9px; height:9px; border-radius:50%; top:50%; left:50%; background:var(--dourado); box-shadow:0 0 8px 2px rgba(255,215,0,0.7); animation:piscar 1.6s ease-in-out infinite; transform:translate(-50%,-50%);}
@@ -158,39 +166,22 @@
   #roleta-canvas{position:relative; width:78%; height:78%; border-radius:50%; box-shadow:0 0 0 6px #0d0d1a, 0 0 0 9px var(--dourado), 0 10px 40px rgba(0,0,0,0.6); transition: transform 4.2s cubic-bezier(0.12, 0.85, 0.18, 1); z-index:2;}
   .ponteiro{position:absolute; top:-6px; left:50%; transform:translateX(-50%); width:0; height:0; z-index:6; border-left:14px solid transparent; border-right:14px solid transparent; border-top:24px solid var(--dourado); filter:drop-shadow(0 3px 5px rgba(0,0,0,0.6)); animation:apontarPulso 1.4s ease-in-out infinite;}
   @keyframes apontarPulso{ 0%,100%{transform:translateX(-50%) translateY(0);} 50%{transform:translateX(-50%) translateY(3px);} }
-
   .info-jogo{display:flex; gap:16px; align-items:center; flex-wrap:wrap; justify-content:center;}
   .perspectiva-letra{perspective:600px;}
-  .letra-display{
-    font-size:2.6rem; font-weight:800; width:70px; height:70px; border-radius:16px;
-    display:flex; align-items:center; justify-content:center;
-    background:linear-gradient(135deg, var(--rosa), var(--laranja)); box-shadow:0 6px 18px rgba(233,69,96,0.4);
-    transform-style:preserve-3d;
-  }
+  .letra-display{font-size:2.6rem; font-weight:800; width:70px; height:70px; border-radius:16px; display:flex; align-items:center; justify-content:center; background:linear-gradient(135deg, var(--rosa), var(--laranja)); box-shadow:0 6px 18px rgba(233,69,96,0.4); transform-style:preserve-3d;}
   .letra-display.flip{ animation:flipLetra .7s ease; }
-  @keyframes flipLetra{
-    0%{transform:rotateY(0deg) scale(1);}
-    45%{transform:rotateY(95deg) scale(1.08); background:linear-gradient(135deg, var(--dourado), var(--laranja));}
-    55%{transform:rotateY(95deg) scale(1.08); background:linear-gradient(135deg, var(--dourado), var(--laranja));}
-    100%{transform:rotateY(360deg) scale(1);}
-  }
+  @keyframes flipLetra{ 0%{transform:rotateY(0deg) scale(1);} 45%{transform:rotateY(95deg) scale(1.08); background:linear-gradient(135deg, var(--dourado), var(--laranja));} 55%{transform:rotateY(95deg) scale(1.08); background:linear-gradient(135deg, var(--dourado), var(--laranja));} 100%{transform:rotateY(360deg) scale(1);} }
   .tema-display{font-size:1.15rem; font-weight:600; color:var(--agua); transition:transform .2s ease;}
   .tema-display.pulso{ animation:pulsoTexto .4s ease; }
   @keyframes pulsoTexto{ 50%{ transform:scale(1.15); color:var(--dourado); } }
   .rodada-display{font-size:1rem; color:var(--texto-fraco); background:var(--vidro); padding:6px 12px; border-radius:8px; transition:transform .2s ease;}
   .rodada-display.pulso{ animation:pulsoTexto .4s ease; }
-
   .letra-manual{display:flex; gap:8px; align-items:center;}
 
   .painel-admin{flex:1; min-width:320px; display:flex; flex-direction:column; gap:16px;}
   .linha{display:flex; gap:10px; align-items:center; flex-wrap:wrap;}
   .status-lista{display:flex; flex-direction:column; gap:8px; max-height:280px; overflow-y:auto;}
-  .status-item{
-    background:rgba(255,255,255,0.05); border-radius:10px; padding:10px 14px;
-    display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;
-    animation:entrarLista .3s ease backwards; transition:background .2s ease, border-color .2s ease;
-    border:1px solid transparent;
-  }
+  .status-item{background:rgba(255,255,255,0.05); border-radius:10px; padding:10px 14px; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; animation:entrarLista .3s ease backwards; transition:background .2s ease, border-color .2s ease; border:1px solid transparent;}
   .status-item:hover{background:rgba(255,255,255,0.09);}
   .status-item.completo{border-color:var(--verde); background:rgba(46,204,113,0.12);}
   .status-item .nome{font-weight:600; display:flex; align-items:center; gap:6px;}
@@ -201,60 +192,32 @@
   .bolinha.completo{background:var(--verde); box-shadow:0 0 6px rgba(46,204,113,0.7);}
   .barra-progresso{width:100%; height:6px; border-radius:4px; background:rgba(255,255,255,0.1); overflow:hidden; margin-top:4px;}
   .barra-progresso .preenchido{height:100%; background:linear-gradient(90deg,var(--agua),var(--verde)); transition:width .3s ease;}
-
   .botoes-globais{display:flex; gap:10px; margin-top:auto; padding-top:10px; flex-wrap:wrap;}
   .notificacao{background:rgba(255,215,0,0.14); border:1px solid var(--dourado); border-radius:10px; padding:10px 14px; display:flex; justify-content:space-between; align-items:center; gap:10px; animation:entrarDireita .35s ease;}
   @keyframes entrarDireita{ from{opacity:0; transform:translateX(20px);} to{opacity:1; transform:translateX(0);} }
-
   .feed-lista{display:flex; flex-direction:column-reverse; gap:6px; max-height:180px; overflow-y:auto;}
   .feed-item{font-size:0.85rem; color:var(--texto-fraco); background:rgba(255,255,255,0.04); padding:6px 10px; border-radius:8px; animation:entrarLista .3s ease;}
   .feed-item b{color:var(--texto);}
 
   /* ---------- Modo Jogador ---------- */
   .player-view{flex:1; display:flex; flex-direction:column; align-items:center; gap:16px; padding:20px; text-align:center; overflow-y:auto;}
-  .badge-nome{font-size:0.85rem; color:var(--texto-fraco); background:var(--vidro); padding:6px 14px; border-radius:20px; display:flex; align-items:center; gap:8px;}
-  .badge-nome button{background:transparent; color:var(--agua); font-size:0.8rem; text-decoration:underline; padding:0;}
-  .letra-display-player{
-    font-size:4.4rem; font-weight:900; width:120px; height:120px; border-radius:26px;
-    display:flex; align-items:center; justify-content:center;
-    background:linear-gradient(135deg, var(--rosa), var(--laranja));
-    box-shadow:0 12px 34px rgba(233,69,96,0.5); transform-style:preserve-3d; flex-shrink:0;
-  }
+  .letra-display-player{font-size:4.4rem; font-weight:900; width:120px; height:120px; border-radius:26px; display:flex; align-items:center; justify-content:center; background:linear-gradient(135deg, var(--rosa), var(--laranja)); box-shadow:0 12px 34px rgba(233,69,96,0.5); transform-style:preserve-3d; flex-shrink:0;}
   .letra-display-player.flip{ animation:flipLetra .7s ease; }
   .tema-display-player{font-size:1.3rem; font-weight:700; color:var(--agua);}
   .tema-display-player.pulso{ animation:pulsoTexto .4s ease; }
-
   #player-stop-temas{display:flex; flex-direction:column; gap:10px; width:100%; max-width:420px;}
-  .tema-linha{
-    background:var(--vidro); border:1px solid var(--vidro-borda); border-radius:14px; padding:10px 14px;
-    display:flex; align-items:center; justify-content:space-between; gap:10px; animation:entrarLista .3s ease backwards;
-  }
+  .tema-linha{background:var(--vidro); border:1px solid var(--vidro-borda); border-radius:14px; padding:10px 14px; display:flex; align-items:center; justify-content:space-between; gap:10px; animation:entrarLista .3s ease backwards;}
   .tema-linha .tema-nome{font-weight:700; text-align:left; flex:1;}
   .tema-linha .tema-botoes{display:flex; gap:6px;}
-  .btn-ponto-mini{
-    width:42px; height:42px; border-radius:12px; font-size:1rem; font-weight:800;
-    background:rgba(255,255,255,0.08); border:2px solid var(--vidro-borda);
-  }
+  .btn-ponto-mini{width:42px; height:42px; border-radius:12px; font-size:1rem; font-weight:800; background:rgba(255,255,255,0.08); border:2px solid var(--vidro-borda);}
   .btn-ponto-mini.selecionado{background:linear-gradient(135deg,var(--agua),#2a9d8f); border-color:var(--agua); animation:selecionarPonto .3s ease;}
   @keyframes selecionarPonto{ 50%{ transform:scale(1.2); } }
-
   #player-stop-progresso{width:100%; max-width:420px;}
-  #player-stop-aguardando{
-    display:none; flex-direction:column; align-items:center; gap:14px; padding:30px 20px;
-    background:rgba(46,204,113,0.1); border:1px solid var(--verde); border-radius:20px; max-width:420px; width:100%;
-    animation:entrarCard .4s ease;
-  }
+  #player-stop-aguardando{display:none; flex-direction:column; align-items:center; gap:14px; padding:30px 20px; background:rgba(46,204,113,0.1); border:1px solid var(--verde); border-radius:20px; max-width:420px; width:100%; animation:entrarCard .4s ease;}
   #player-stop-aguardando .icone{font-size:3rem; animation:girarSuave 2s linear infinite;}
-  @keyframes girarSuave{ to{ transform:rotate(360deg); } }
-
   .envio-palavra{display:flex; gap:10px; width:100%; max-width:340px;}
   .envio-palavra input{flex:1; text-align:center;}
-  .btn-bingo-grande{
-    padding:20px 36px; font-size:1.4rem; border-radius:20px;
-    background:linear-gradient(135deg, var(--dourado), #b8860b); color:#2a1e00;
-    box-shadow:0 8px 0 #8a6300, 0 14px 28px rgba(255,215,0,0.35);
-    animation:pulsarBingo 2s ease-in-out infinite;
-  }
+  .btn-bingo-grande{padding:20px 36px; font-size:1.4rem; border-radius:20px; background:linear-gradient(135deg, var(--dourado), #b8860b); color:#2a1e00; box-shadow:0 8px 0 #8a6300, 0 14px 28px rgba(255,215,0,0.35); animation:pulsarBingo 2s ease-in-out infinite;}
   @keyframes pulsarBingo{ 0%,100%{box-shadow:0 8px 0 #8a6300, 0 14px 28px rgba(255,215,0,0.35);} 50%{box-shadow:0 8px 0 #8a6300, 0 18px 40px rgba(255,215,0,0.6);} }
   #palavras-enviadas-player{display:flex; flex-direction:column; gap:6px; max-width:320px; width:100%;}
   .palavra-chip{background:var(--vidro); border-radius:8px; padding:8px 12px; font-size:0.9rem; animation:entrarLista .3s ease;}
@@ -262,11 +225,7 @@
   /* ---------- Pódio ---------- */
   #tela-podio{justify-content:flex-start; gap:24px; padding-top:40px;}
   #podio-container{display:flex; flex-direction:column; gap:12px; width:100%; max-width:520px;}
-  .podio-item{
-    display:flex; align-items:center; gap:14px; padding:16px 20px; border-radius:16px;
-    background:var(--vidro); border:1px solid var(--vidro-borda); opacity:0; transform:translateX(-30px);
-    animation:entrarPodio .55s cubic-bezier(.2,.9,.3,1.2) forwards;
-  }
+  .podio-item{display:flex; align-items:center; gap:14px; padding:16px 20px; border-radius:16px; background:var(--vidro); border:1px solid var(--vidro-borda); opacity:0; transform:translateX(-30px); animation:entrarPodio .55s cubic-bezier(.2,.9,.3,1.2) forwards;}
   @keyframes entrarPodio{to{opacity:1; transform:translateX(0);}}
   .podio-item .posicao{font-size:1.5rem; font-weight:800; width:36px; text-align:center;}
   .podio-item .nome{flex:1; font-weight:700; font-size:1.1rem;}
@@ -276,10 +235,36 @@
   .podio-item.prata{border-color:#c0c0c0; box-shadow:0 0 18px rgba(192,192,192,0.25);}
   .podio-item.bronze{border-color:#cd7f32; box-shadow:0 0 18px rgba(205,127,50,0.25);}
   #podio-vazio{color:var(--texto-fraco); text-align:center;}
+  .podio-botoes{display:flex; gap:12px; flex-wrap:wrap; justify-content:center;}
 
   #confetti-container{position:fixed; inset:0; pointer-events:none; overflow:hidden; z-index:999;}
   .confete{position:absolute; top:-20px; border-radius:2px; animation:cair linear forwards;}
   @keyframes cair{to{transform:translateY(110vh) rotate(720deg); opacity:0.15;}}
+
+  /* ---------- Toasts ---------- */
+  #toast-container{position:fixed; top:16px; right:16px; z-index:4000; display:flex; flex-direction:column; gap:10px; max-width:320px;}
+  .toast{padding:14px 18px; border-radius:12px; color:#fff; font-size:0.9rem; box-shadow:0 10px 26px rgba(0,0,0,0.4); animation:entrarToast .3s ease; display:flex; align-items:center; gap:10px;}
+  .toast.saindo{animation:sairToast .3s ease forwards;}
+  @keyframes entrarToast{ from{opacity:0; transform:translateX(30px);} to{opacity:1; transform:translateX(0);} }
+  @keyframes sairToast{ to{opacity:0; transform:translateX(30px);} }
+  .toast.sucesso{background:linear-gradient(135deg,#2ecc71,#1e9e5a);}
+  .toast.erro{background:linear-gradient(135deg,var(--rosa),var(--rosa-esc));}
+  .toast.info{background:linear-gradient(135deg,var(--azul),#2f5fc4);}
+
+  /* ---------- Modal ---------- */
+  #modal-backdrop{position:fixed; inset:0; background:rgba(5,5,12,0.65); backdrop-filter:blur(4px); z-index:3500; display:flex; align-items:center; justify-content:center; padding:20px; animation:fadeIn .2s ease;}
+  @keyframes fadeIn{ from{opacity:0;} to{opacity:1;} }
+  .modal-caixa{width:100%; max-width:440px; background:var(--bg-2); border:1px solid var(--vidro-borda); border-radius:20px; padding:26px; box-shadow:0 24px 60px rgba(0,0,0,0.5); animation:entrarModal .3s cubic-bezier(.2,.9,.3,1.2);}
+  @keyframes entrarModal{ from{opacity:0; transform:scale(.9) translateY(20px);} to{opacity:1; transform:scale(1) translateY(0);} }
+  .modal-caixa h3{margin-bottom:14px; font-size:1.2rem;}
+  .modal-corpo{color:var(--texto); font-size:0.95rem; line-height:1.5; margin-bottom:20px;}
+  .modal-corpo .linha-resultado{display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--vidro-borda); font-size:0.9rem;}
+  .modal-botoes{display:flex; gap:10px; justify-content:flex-end; flex-wrap:wrap;}
+  .linha-validacao{display:flex; gap:6px; align-items:center;}
+  .linha-validacao .val-tema{flex:1.3; min-width:0;}
+  .linha-validacao .val-letra{width:62px; flex-shrink:0;}
+  .linha-validacao .val-palavra{flex:1.4; min-width:0;}
+  .linha-validacao .btn-remover-linha{padding:10px 12px; flex-shrink:0;}
 
   @media (max-width: 768px){ .admin-view{display:none;} }
   @media (min-width: 769px){ .player-view{display:none;} }
@@ -289,27 +274,76 @@
 </head>
 <body>
 <div id="particulas"></div>
+
+<header id="cabecalho-sala">
+  <div class="marca">🎉 Stop<span class="ponto">&amp;</span>Bingo</div>
+  <div class="codigo-sala-badge">
+    <span>Sala:</span><span class="valor" id="codigo-sala-valor">-----</span>
+    <button id="btn-copiar-codigo">Copiar</button>
+  </div>
+  <button id="btn-encerrar-sala-header">Encerrar sala</button>
+</header>
+
 <div id="app">
 
-  <!-- TELA 1: MENU -->
-  <div id="tela-menu" class="tela active">
-    <h1>🎉 Stop &amp; Bingo</h1>
-    <p>Escolha o jogo para começar</p>
-    <div class="menu-opcoes">
-      <button class="btn-menu" data-jogo="stop">🛑<span>Stop</span></button>
-      <button class="btn-menu" data-jogo="bingo">🎰<span>Bingo</span></button>
+  <!-- TELA 0: INICIAL (LOBBY) -->
+  <div id="tela-inicial" class="tela active">
+    <div class="logo-inicial">🎉</div>
+    <h1>Stop &amp; Bingo</h1>
+    <p class="subtitulo">Jogos em tempo real para sua turma, evento ou grupo de amigos</p>
+
+    <div id="bloco-opcoes-iniciais" class="cards-inicial">
+      <div class="card-inicial" id="card-criar-sala">
+        <div class="icone">🎬</div>
+        <h3 style="margin:0;">Criar uma Sala</h3>
+        <p>Você vira o anfitrião: escolhe o jogo, controla a rodada e acompanha tudo em tempo real.</p>
+        <button class="btn-primario btn-bloco" id="btn-criar-sala">Criar Sala</button>
+      </div>
+      <div class="card-inicial" id="card-entrar-sala">
+        <div class="icone">🎮</div>
+        <h3 style="margin:0;">Entrar em uma Sala</h3>
+        <p>Já tem um código? Digite seu nome e o código para entrar na partida pelo celular.</p>
+        <button class="btn-azul btn-bloco" id="btn-mostrar-form-entrar">Entrar em Sala</button>
+      </div>
+    </div>
+
+    <div id="bloco-form-entrar" class="form-entrar" style="display:none">
+      <input id="input-nome-jogador" placeholder="Seu nome" maxlength="20"/>
+      <input id="input-codigo-sala" placeholder="CÓDIGO" maxlength="5"/>
+      <div class="erro-form" id="erro-form-entrar"></div>
+      <button class="btn-azul btn-bloco" id="btn-confirmar-entrada">Entrar na Sala</button>
+      <button class="link-voltar" id="btn-voltar-opcoes">⬅ Voltar</button>
     </div>
   </div>
 
-  <!-- TELA 2: CONFIGURAÇÃO -->
+  <!-- TELA 1: MENU (escolha do jogo, só anfitrião) -->
+  <div id="tela-menu" class="tela">
+    <h1>🎮 Escolha o Jogo</h1>
+    <p class="subtitulo">Sua sala já está pronta — escolha o que vão jogar</p>
+    <div class="cards-inicial" style="margin-top:20px;">
+      <button class="card-inicial" data-jogo="stop" style="cursor:pointer;">
+        <div class="icone">🛑</div>
+        <h3 style="margin:0;">Stop</h3>
+        <p>Uma letra, 8 temas, todo mundo vota ao mesmo tempo.</p>
+      </button>
+      <button class="card-inicial" data-jogo="bingo" style="cursor:pointer;">
+        <div class="icone">🎰</div>
+        <h3 style="margin:0;">Bingo</h3>
+        <p>Palavras por letra, validação automática pelo dicionário.</p>
+      </button>
+    </div>
+  </div>
+
+  <!-- TELA 2: CONFIGURAÇÃO (anfitrião) -->
   <div id="tela-config" class="tela">
     <h2 id="config-titulo">Configuração</h2>
 
     <div class="card">
-      <h3>👥 Jogadores</h3>
+      <h3>👥 Jogadores na sala</h3>
+      <p class="aviso-texto">Compartilhe o código da sala (no topo da tela) para as pessoas entrarem pelo celular. Se quiser, também pode adicionar alguém manualmente aqui:</p>
       <div class="add-jogador">
         <input id="input-jogador" placeholder="Nome do jogador" maxlength="20"/>
-        <button class="btn-primario" id="btn-add-jogador">Adicionar</button>
+        <button class="btn-secundario" id="btn-add-jogador">Adicionar</button>
       </div>
       <ul id="lista-jogadores"></ul>
     </div>
@@ -321,20 +355,29 @@
     </div>
 
     <div class="card config-especifica" id="config-bingo" style="display:none">
-      <h3>🎯 Tema do Bingo</h3>
-      <select id="select-tema-bingo" style="width:100%"></select>
+      <h3>🎯 Bingo</h3>
+      <p class="aviso-texto">O tema não é escolhido aqui — você define (e pode trocar) o tema a qualquer momento durante o jogo, junto com a letra sorteada.</p>
     </div>
 
     <div class="config-botoes">
-      <button class="btn-secundario" id="btn-voltar-menu">⬅ Voltar</button>
+      <button class="btn-secundario" id="btn-voltar-jogo-menu">⬅ Trocar jogo</button>
       <button class="btn-primario" id="btn-iniciar-jogo">🚀 Iniciar Jogo</button>
     </div>
   </div>
 
-  <!-- TELA 3: JOGO -->
-  <div id="tela-jogo" class="tela">
+  <!-- TELA 3: AGUARDANDO (jogador, antes do jogo começar) -->
+  <div id="tela-aguardando" class="tela">
+    <div class="icone-aguardando">🎡</div>
+    <h2>Aguardando o anfitrião...</h2>
+    <p class="subtitulo">Assim que o jogo começar, ele aparece aqui automaticamente.</p>
+    <div class="card">
+      <h3>👥 Quem já entrou</h3>
+      <ul id="lista-jogadores-espera"></ul>
+    </div>
+  </div>
 
-    <!-- MODO ADMINISTRADOR (computador, largura >= 769px) -->
+  <!-- TELA 4: JOGO -->
+  <div id="tela-jogo" class="tela">
     <div class="admin-view">
       <div class="roleta-coluna">
         <div class="roleta-wrap">
@@ -350,6 +393,10 @@
             <div class="rodada-display" id="admin-rodada">Rodada 1</div>
           </div>
         </div>
+        <div class="letra-manual" id="bloco-tema-bingo" style="display:none">
+          <select id="select-tema-atual-bingo"></select>
+          <button class="btn-secundario" id="btn-confirmar-tema-bingo">🎯 Confirmar Tema</button>
+        </div>
         <button class="btn-primario" id="btn-girar">🎡 Girar Roleta</button>
         <div class="letra-manual">
           <select id="select-letra-manual"></select>
@@ -359,7 +406,6 @@
       </div>
 
       <div class="painel-admin">
-        <!-- Painel STOP -->
         <div id="painel-stop-admin" style="display:none">
           <div class="card">
             <h3>⚙️ Controles</h3>
@@ -374,16 +420,11 @@
           </div>
         </div>
 
-        <!-- Painel BINGO -->
         <div id="painel-bingo-admin" style="display:none">
           <div class="card">
             <h3>⚙️ Controles</h3>
-            <p style="margin-bottom:10px;">Tema atual: <strong id="bingo-tema-admin" style="color:var(--agua);">-</strong></p>
+            <p style="margin-bottom:10px;">Tema atual: <strong id="bingo-tema-admin" style="color:var(--agua);">-</strong> <span class="aviso-texto">(troque ao lado da roleta)</span></p>
             <div class="linha">
-              <select id="select-mudar-tema-bingo"></select>
-              <button class="btn-secundario" id="btn-alterar-tema-bingo">Alterar</button>
-            </div>
-            <div class="linha" style="margin-top:12px;">
               <button class="btn-primario" id="btn-validar-bingo">✅ Validar Bingo</button>
               <button class="btn-perigo" id="btn-limpar-palavras">🗑️ Limpar palavras</button>
             </div>
@@ -398,7 +439,6 @@
           </div>
         </div>
 
-        <!-- Feed de atividade (comum aos dois jogos) -->
         <div class="card">
           <h3>📣 Atividade ao vivo</h3>
           <div class="feed-lista" id="feed-lista"></div>
@@ -406,18 +446,15 @@
 
         <div class="botoes-globais">
           <button class="btn-ouro" id="btn-finalizar">🏁 Finalizar</button>
-          <button class="btn-secundario" id="btn-config">⬅ Config</button>
         </div>
       </div>
     </div>
 
-    <!-- MODO JOGADOR (celular, largura < 769px) -->
     <div class="player-view">
-      <div class="badge-nome">👤 <span id="player-nome-atual">-</span> <button id="btn-trocar-nome">trocar</button></div>
       <div class="perspectiva-letra"><div class="letra-display-player" id="player-letra">-</div></div>
       <div class="tema-display-player" id="player-tema">-</div>
 
-      <div id="player-stop" style="display:none; width:100%; display:flex; flex-direction:column; align-items:center; gap:14px;">
+      <div id="player-stop" style="display:none; width:100%; flex-direction:column; align-items:center; gap:14px;">
         <div id="player-stop-progresso"></div>
         <div id="player-stop-temas"></div>
         <div id="player-stop-aguardando">
@@ -437,32 +474,33 @@
     </div>
   </div>
 
-  <!-- TELA 4: PÓDIO -->
+  <!-- TELA 5: PÓDIO -->
   <div id="tela-podio" class="tela">
     <h1>🏆 Pódio Final</h1>
     <div id="podio-container"></div>
-    <button class="btn-primario" id="btn-reiniciar">⬅ Voltar ao início</button>
+    <div class="podio-botoes">
+      <button class="btn-primario" id="btn-jogar-novamente">🔁 Jogar novamente nesta sala</button>
+      <button class="btn-secundario" id="btn-encerrar-sala-podio">🚪 Encerrar sala</button>
+    </div>
   </div>
 
 </div>
+
 <div id="confetti-container"></div>
+<div id="toast-container"></div>
 
 <script>
 // Conexão segura: se o servidor não estiver rodando (ex: arquivo aberto direto
 // no navegador em vez de acessado via http://localhost:3000), 'io' não existe.
-// Sem essa proteção, o script quebraria aqui e NENHUM botão da página funcionaria.
 let socket = null;
-try{
-  if(typeof io === 'function') socket = io();
-}catch(e){ socket = null; }
-
+try{ if(typeof io === 'function') socket = io(); }catch(e){ socket = null; }
 function emitSeguro(evento, dados){ if(socket) socket.emit(evento, dados); }
 function onSeguro(evento, cb){ if(socket) socket.on(evento, cb); }
 
 if(!socket){
   const aviso = document.createElement('div');
   aviso.id = 'aviso-servidor';
-  aviso.innerHTML = '⚠️ Não foi possível conectar ao servidor. Rode <code>npm start</code> e acesse pelo endereço <code>http://localhost:3000</code> (não abra o arquivo index.html direto). As telas vão navegar, mas nada será sincronizado.';
+  aviso.innerHTML = '⚠️ Não foi possível conectar ao servidor. Rode <code>npm start</code> e acesse pelo endereço <code>http://localhost:3000</code>.';
   document.body.prepend(aviso);
 }
 
@@ -472,13 +510,14 @@ let estado = null;
 let currentRotation = 0;
 let ultimaLetraGirada = null;
 let jogoSelecionadoConfig = null;
-let jaSinalizeiPronto = false; // evita reenviar "jogador_pronto" repetidamente na mesma rodada
+let jaSinalizeiPronto = false;
+let papelAtual = null; // 'admin' | 'jogador'
+let telaDecidida = false; // evita renavegar toda vez que 'estado_atualizado' chega
 
 // ---------- Partículas de fundo ----------
 (function criarParticulas(){
   const cont = document.getElementById('particulas');
-  const n = 22;
-  for(let i=0;i<n;i++){
+  for(let i=0;i<22;i++){
     const p = document.createElement('div');
     p.className = 'particula';
     const tamanho = 3 + Math.random()*7;
@@ -507,60 +546,208 @@ document.addEventListener('click', (e) => {
   setTimeout(() => span.remove(), 650);
 });
 
-// ---------- Utilidades de nome do jogador (localStorage) ----------
-function getMeuNome(forcarPergunta){
-  let nome = localStorage.getItem('sb_nome_jogador');
-  if(!nome || forcarPergunta){
-    nome = (prompt('Digite seu nome:') || '').trim();
-    if(nome) localStorage.setItem('sb_nome_jogador', nome);
-  }
-  return nome;
+// ---------- Toasts ----------
+function toast(mensagem, tipo){
+  tipo = tipo || 'info';
+  const cont = document.getElementById('toast-container');
+  const el = document.createElement('div');
+  el.className = 'toast ' + tipo;
+  const icone = tipo === 'sucesso' ? '✅' : tipo === 'erro' ? '⚠️' : 'ℹ️';
+  el.innerHTML = `<span>${icone}</span><span>${mensagem}</span>`;
+  cont.appendChild(el);
+  setTimeout(() => {
+    el.classList.add('saindo');
+    setTimeout(() => el.remove(), 300);
+  }, 4000);
 }
-document.getElementById('btn-trocar-nome').addEventListener('click', () => {
-  const novo = getMeuNome(true);
-  if(novo){
-    document.getElementById('player-nome-atual').textContent = novo;
-    jaSinalizeiPronto = false;
-    emitSeguro('jogador_pronto', { nome: novo });
-  }
-});
+
+// ---------- Modais ----------
+function fecharModal(){
+  const b = document.getElementById('modal-backdrop');
+  if(b) b.remove();
+}
+function abrirModal({titulo, corpoHtml, botoes}){
+  fecharModal();
+  const backdrop = document.createElement('div');
+  backdrop.id = 'modal-backdrop';
+  backdrop.innerHTML = `<div class="modal-caixa"><h3>${titulo}</h3><div class="modal-corpo">${corpoHtml}</div><div class="modal-botoes"></div></div>`;
+  document.body.appendChild(backdrop);
+  const botoesCont = backdrop.querySelector('.modal-botoes');
+  (botoes || []).forEach(b => {
+    const btn = document.createElement('button');
+    btn.className = b.classe || 'btn-secundario';
+    btn.textContent = b.label;
+    btn.addEventListener('click', () => { if(b.acao) b.acao(); fecharModal(); });
+    botoesCont.appendChild(btn);
+  });
+  backdrop.addEventListener('click', (e) => { if(e.target === backdrop) fecharModal(); });
+}
+function abrirConfirmacao(titulo, corpoHtml, textoConfirmar, acaoConfirmar, classeConfirmar){
+  abrirModal({
+    titulo, corpoHtml,
+    botoes: [
+      { label: 'Cancelar', classe: 'btn-secundario' },
+      { label: textoConfirmar, classe: classeConfirmar || 'btn-perigo', acao: acaoConfirmar }
+    ]
+  });
+}
 
 // ---------- Navegação entre telas ----------
 function mostrarTela(id){
   document.querySelectorAll('.tela').forEach(t => t.classList.remove('active'));
   document.getElementById(id).classList.add('active');
+  document.getElementById('cabecalho-sala').style.display = (id === 'tela-inicial') ? 'none' : 'flex';
 }
 
-// ---------- TELA MENU ----------
-document.querySelectorAll('.btn-menu').forEach(btn => {
+// ---------- Persistência local ----------
+function salvarSessao(codigo, papel, nome){
+  localStorage.setItem('sb_codigo_sala', codigo);
+  localStorage.setItem('sb_papel', papel);
+  if(nome) localStorage.setItem('sb_nome_jogador', nome);
+}
+function limparSessao(){
+  localStorage.removeItem('sb_codigo_sala');
+  localStorage.removeItem('sb_papel');
+}
+function mostrarCodigoNoHeader(codigo){
+  document.getElementById('codigo-sala-valor').textContent = codigo;
+  document.getElementById('btn-encerrar-sala-header').style.display = papelAtual === 'admin' ? 'inline-block' : 'none';
+}
+
+// ---------- TELA INICIAL ----------
+document.getElementById('btn-criar-sala').addEventListener('click', () => {
+  emitSeguro('criar_sala');
+});
+document.getElementById('btn-mostrar-form-entrar').addEventListener('click', () => {
+  document.getElementById('bloco-opcoes-iniciais').style.display = 'none';
+  document.getElementById('bloco-form-entrar').style.display = 'flex';
+  const params = new URLSearchParams(location.search);
+  const codigoUrl = params.get('sala');
+  if(codigoUrl) document.getElementById('input-codigo-sala').value = codigoUrl.toUpperCase();
+});
+document.getElementById('btn-voltar-opcoes').addEventListener('click', () => {
+  document.getElementById('bloco-opcoes-iniciais').style.display = 'flex';
+  document.getElementById('bloco-form-entrar').style.display = 'none';
+  document.getElementById('erro-form-entrar').textContent = '';
+});
+document.getElementById('input-codigo-sala').addEventListener('input', (e) => {
+  e.target.value = e.target.value.toUpperCase();
+});
+function tentarEntrarNaSala(){
+  const nome = document.getElementById('input-nome-jogador').value.trim();
+  const codigo = document.getElementById('input-codigo-sala').value.trim().toUpperCase();
+  const erroEl = document.getElementById('erro-form-entrar');
+  erroEl.textContent = '';
+  if(!nome){ erroEl.textContent = 'Digite seu nome.'; return; }
+  if(codigo.length !== 5){ erroEl.textContent = 'O código da sala tem 5 caracteres.'; return; }
+  emitSeguro('entrar_sala', { codigo, nome });
+}
+document.getElementById('btn-confirmar-entrada').addEventListener('click', tentarEntrarNaSala);
+document.getElementById('input-codigo-sala').addEventListener('keydown', e => { if(e.key==='Enter') tentarEntrarNaSala(); });
+document.getElementById('input-nome-jogador').addEventListener('keydown', e => { if(e.key==='Enter') tentarEntrarNaSala(); });
+
+// ---------- Respostas do servidor sobre sala ----------
+onSeguro('sala_criada', ({codigo}) => {
+  papelAtual = 'admin';
+  telaDecidida = false;
+  salvarSessao(codigo, 'admin');
+  mostrarCodigoNoHeader(codigo);
+});
+onSeguro('sala_entrada_ok', ({codigo, nome}) => {
+  papelAtual = 'jogador';
+  telaDecidida = false;
+  jaSinalizeiPronto = false;
+  salvarSessao(codigo, 'jogador', nome);
+  mostrarCodigoNoHeader(codigo);
+});
+onSeguro('erro_sala', ({mensagem}) => {
+  const eraReconexao = !!localStorage.getItem('sb_codigo_sala') && !telaDecidida && estado === null;
+  toast(mensagem, 'erro');
+  const erroEl = document.getElementById('erro-form-entrar');
+  if(erroEl) erroEl.textContent = mensagem;
+  if(eraReconexao){
+    limparSessao();
+    mostrarTela('tela-inicial');
+  }
+});
+onSeguro('sala_encerrada', () => {
+  toast('A sala foi encerrada.', 'info');
+  limparSessao();
+  papelAtual = null; estado = null; telaDecidida = false; ultimaLetraGirada = null;
+  mostrarTela('tela-inicial');
+});
+
+document.getElementById('btn-copiar-codigo').addEventListener('click', () => {
+  const codigo = document.getElementById('codigo-sala-valor').textContent;
+  if(navigator.clipboard){
+    navigator.clipboard.writeText(codigo).then(() => toast('Código copiado!', 'sucesso'));
+  }
+});
+function confirmarEncerrarSala(){
+  abrirConfirmacao(
+    '🚪 Encerrar sala',
+    '<p>Isso vai encerrar a sala para todos os jogadores conectados. Essa ação não pode ser desfeita.</p>',
+    'Encerrar sala',
+    () => {
+      emitSeguro('encerrar_sala');
+      limparSessao();
+      papelAtual = null; estado = null; telaDecidida = false; ultimaLetraGirada = null;
+      mostrarTela('tela-inicial');
+    }
+  );
+}
+document.getElementById('btn-encerrar-sala-header').addEventListener('click', confirmarEncerrarSala);
+document.getElementById('btn-encerrar-sala-podio').addEventListener('click', confirmarEncerrarSala);
+
+// ---------- Reconexão automática ----------
+(function tentarReconectar(){
+  const codigoSalvo = localStorage.getItem('sb_codigo_sala');
+  const papelSalvo = localStorage.getItem('sb_papel');
+  const nomeSalvo = localStorage.getItem('sb_nome_jogador');
+  if(!codigoSalvo || !papelSalvo) return;
+  papelAtual = papelSalvo;
+  if(papelSalvo === 'admin'){
+    emitSeguro('reconectar_admin', codigoSalvo);
+  } else if(papelSalvo === 'jogador' && nomeSalvo){
+    emitSeguro('entrar_sala', { codigo: codigoSalvo, nome: nomeSalvo });
+  }
+})();
+
+// ---------- Limpeza de "ao vivo" (feed + notificações de bingo) ----------
+// Evita que mensagens de uma partida/jogo anterior fiquem visíveis depois de
+// trocar de jogo ou começar uma partida nova na mesma sala.
+function limparAoVivo(){
+  const feed = document.getElementById('feed-lista');
+  if(feed) feed.innerHTML = '';
+  const listaNotif = document.getElementById('notificacoes-lista');
+  if(listaNotif) listaNotif.innerHTML = '';
+  const cardNotif = document.getElementById('card-notificacoes');
+  if(cardNotif) cardNotif.style.display = 'none';
+}
+
+// ---------- TELA MENU (escolha do jogo) ----------
+document.querySelectorAll('#tela-menu [data-jogo]').forEach(btn => {
   btn.addEventListener('click', () => {
     jogoSelecionadoConfig = btn.dataset.jogo;
+    limparAoVivo();
+    emitSeguro('set_jogo', jogoSelecionadoConfig);
     prepararTelaConfig();
     mostrarTela('tela-config');
   });
 });
+document.getElementById('btn-voltar-jogo-menu').addEventListener('click', () => mostrarTela('tela-menu'));
 
 // ---------- TELA CONFIG ----------
 function prepararTelaConfig(){
-  document.getElementById('config-titulo').textContent =
-    jogoSelecionadoConfig === 'stop' ? '🛑 Configurar Stop' : '🎰 Configurar Bingo';
-
+  document.getElementById('config-titulo').textContent = jogoSelecionadoConfig === 'stop' ? '🛑 Configurar Stop' : '🎰 Configurar Bingo';
   document.getElementById('config-stop').style.display = jogoSelecionadoConfig === 'stop' ? 'block' : 'none';
   document.getElementById('config-bingo').style.display = jogoSelecionadoConfig === 'bingo' ? 'block' : 'none';
-
   const gridTemas = document.getElementById('temas-grid-stop');
   gridTemas.innerHTML = TEMAS.map((t,i) => `<div class="tema-chip" style="animation-delay:${i*0.04}s">${t}</div>`).join('');
-
-  const selBingo = document.getElementById('select-tema-bingo');
-  selBingo.innerHTML = TEMAS.map(t => `<option value="${t}">${t}</option>`).join('');
 }
 
-document.getElementById('btn-voltar-menu').addEventListener('click', () => mostrarTela('tela-menu'));
-
 document.getElementById('btn-add-jogador').addEventListener('click', adicionarJogadorConfig);
-document.getElementById('input-jogador').addEventListener('keydown', e => {
-  if(e.key === 'Enter') adicionarJogadorConfig();
-});
+document.getElementById('input-jogador').addEventListener('keydown', e => { if(e.key === 'Enter') adicionarJogadorConfig(); });
 function adicionarJogadorConfig(){
   const input = document.getElementById('input-jogador');
   const nome = input.value.trim();
@@ -571,10 +758,6 @@ function adicionarJogadorConfig(){
 
 document.getElementById('btn-iniciar-jogo').addEventListener('click', () => {
   if(!jogoSelecionadoConfig) return;
-  emitSeguro('set_jogo', jogoSelecionadoConfig);
-  if(jogoSelecionadoConfig === 'bingo'){
-    emitSeguro('set_tema_bingo', document.getElementById('select-tema-bingo').value);
-  }
   mostrarTela('tela-jogo');
 });
 
@@ -593,39 +776,107 @@ document.getElementById('btn-definir-letra').addEventListener('click', () => {
 });
 
 document.getElementById('btn-forcar-rodada').addEventListener('click', () => {
-  if(confirm('Forçar o fim da rodada mesmo com jogadores que não terminaram de votar? Quem não votou recebe 0 nos temas pendentes.')){
-    emitSeguro('forcar_proxima_rodada_stop');
-  }
+  abrirConfirmacao('⏭ Forçar próxima rodada', '<p>Jogadores que ainda não terminaram de votar vão receber 0 nos temas pendentes. Deseja continuar?</p>', 'Forçar', () => emitSeguro('forcar_proxima_rodada_stop'));
 });
 document.getElementById('btn-zerar-pontos').addEventListener('click', () => {
-  if(confirm('Zerar todos os pontos do Stop?')) emitSeguro('zerar_pontos_stop');
+  abrirConfirmacao('🔄 Zerar pontos', '<p>Isso vai apagar a pontuação acumulada de todos os jogadores no Stop.</p>', 'Zerar pontos', () => emitSeguro('zerar_pontos_stop'));
 });
 
-const selMudarTemaBingo = document.getElementById('select-mudar-tema-bingo');
-selMudarTemaBingo.innerHTML = TEMAS.map(t => `<option value="${t}">${t}</option>`).join('');
-document.getElementById('btn-alterar-tema-bingo').addEventListener('click', () => {
-  emitSeguro('set_tema_bingo', selMudarTemaBingo.value);
+// Controle único de tema do Bingo, ao lado da roleta — o valor exibido é
+// sempre sincronizado com o tema atual da sala (veja aplicarEstado), então
+// nunca fica "preso" num valor antigo por engano.
+const selTemaAtualBingo = document.getElementById('select-tema-atual-bingo');
+selTemaAtualBingo.innerHTML = TEMAS.map(t => `<option value="${t}">${t}</option>`).join('');
+document.getElementById('btn-confirmar-tema-bingo').addEventListener('click', () => {
+  emitSeguro('set_tema_bingo', selTemaAtualBingo.value);
+  toast(`Tema definido: ${selTemaAtualBingo.value}`, 'sucesso');
 });
 
-document.getElementById('btn-validar-bingo').addEventListener('click', () => {
-  const nome = prompt('Nome do jogador que pediu BINGO:');
-  if(nome && nome.trim()) emitSeguro('validar_bingo', nome.trim());
-});
+// ---------- Validar Bingo: formulário com várias linhas editáveis ----------
+function linhaValidacaoHtml(entrada){
+  entrada = entrada || { tema: estado ? estado.temaAtual : TEMAS[0], letra: (estado && estado.letraAtual) || LETRAS[0], palavra: '' };
+  const opcoesTema = TEMAS.map(t => `<option value="${t}" ${entrada.tema===t?'selected':''}>${t}</option>`).join('');
+  const opcoesLetra = LETRAS.map(l => `<option value="${l}" ${entrada.letra===l?'selected':''}>${l}</option>`).join('');
+  return `<div class="linha-validacao">
+    <select class="val-tema">${opcoesTema}</select>
+    <select class="val-letra">${opcoesLetra}</select>
+    <input class="val-palavra" type="text" value="${(entrada.palavra||'').replace(/"/g,'&quot;')}" placeholder="palavra"/>
+    <button type="button" class="btn-remover-linha btn-secundario">✕</button>
+  </div>`;
+}
+function construirLinhasValidacao(jogador){
+  const palavras = jogador ? jogador.palavras : [];
+  if(!palavras || palavras.length === 0) return linhaValidacaoHtml(null);
+  return palavras.map(p => linhaValidacaoHtml(p)).join('');
+}
+function ligarBotoesRemoverLinha(){
+  document.querySelectorAll('#linhas-validacao-bingo .btn-remover-linha').forEach(btn => {
+    btn.onclick = () => {
+      const cont = document.getElementById('linhas-validacao-bingo');
+      if(cont.children.length > 1) btn.closest('.linha-validacao').remove();
+      else toast('Deixe ao menos uma linha ou cancele a validação.', 'info');
+    };
+  });
+}
+function abrirModalValidarBingo(nomeSugerido){
+  if(!estado || estado.jogadores.length === 0){
+    toast('Ainda não há jogadores na sala.', 'info');
+    return;
+  }
+  const nomeInicial = nomeSugerido || estado.jogadores[0].nome;
+  const opcoesJogador = estado.jogadores.map(j => `<option value="${j.nome}" ${j.nome===nomeInicial?'selected':''}>${j.nome} (${j.palavras.length} pendente(s))</option>`).join('');
+  const jogadorInicial = estado.jogadores.find(j => j.nome === nomeInicial);
+
+  abrirModal({
+    titulo: '✅ Validar Bingo',
+    corpoHtml: `
+      <label style="margin-top:0;">Jogador
+        <select id="modal-select-jogador-bingo" style="width:100%; margin-top:6px;">${opcoesJogador}</select>
+      </label>
+      <div id="linhas-validacao-bingo" style="display:flex; flex-direction:column; gap:8px; margin-top:14px;">
+        ${construirLinhasValidacao(jogadorInicial)}
+      </div>
+      <button type="button" class="btn-secundario btn-bloco" id="btn-add-linha-validacao" style="margin-top:10px;">➕ Adicionar palavra</button>
+    `,
+    botoes: [
+      { label: 'Cancelar', classe: 'btn-secundario' },
+      { label: 'Validar', classe: 'btn-primario', acao: () => {
+          const nome = document.getElementById('modal-select-jogador-bingo').value;
+          const entradas = Array.from(document.querySelectorAll('#linhas-validacao-bingo .linha-validacao')).map(linha => ({
+            tema: linha.querySelector('.val-tema').value,
+            letra: linha.querySelector('.val-letra').value,
+            palavra: linha.querySelector('.val-palavra').value.trim()
+          })).filter(e => e.palavra);
+          if(entradas.length === 0){ toast('Adicione ao menos uma palavra para validar.', 'erro'); return; }
+          emitSeguro('validar_bingo', { nome, entradas });
+        } }
+    ]
+  });
+
+  document.getElementById('modal-select-jogador-bingo').addEventListener('change', (e) => {
+    const j = estado.jogadores.find(x => x.nome === e.target.value);
+    document.getElementById('linhas-validacao-bingo').innerHTML = construirLinhasValidacao(j);
+    ligarBotoesRemoverLinha();
+  });
+  document.getElementById('btn-add-linha-validacao').addEventListener('click', () => {
+    document.getElementById('linhas-validacao-bingo').insertAdjacentHTML('beforeend', linhaValidacaoHtml(null));
+    ligarBotoesRemoverLinha();
+  });
+  ligarBotoesRemoverLinha();
+}
+document.getElementById('btn-validar-bingo').addEventListener('click', () => abrirModalValidarBingo());
 document.getElementById('btn-limpar-palavras').addEventListener('click', () => {
-  if(confirm('Limpar todas as palavras enviadas?')) emitSeguro('limpar_palavras_bingo');
+  abrirConfirmacao('🗑️ Limpar palavras', '<p>Todas as palavras enviadas pelos jogadores serão apagadas.</p>', 'Limpar', () => emitSeguro('limpar_palavras_bingo'));
 });
 
 document.getElementById('btn-finalizar').addEventListener('click', () => {
-  if(confirm('Finalizar o jogo e abrir o pódio?')) emitSeguro('finalizar_jogo');
-});
-document.getElementById('btn-config').addEventListener('click', () => {
-  if(confirm('Voltar para a configuração? O jogo atual continua salvo no servidor.')){
-    mostrarTela('tela-config');
-  }
+  abrirConfirmacao('🏁 Finalizar partida', '<p>Isso vai fechar a rodada atual e abrir o pódio final para todos.</p>', 'Finalizar', () => emitSeguro('finalizar_jogo'), 'btn-ouro');
 });
 
-document.getElementById('btn-reiniciar').addEventListener('click', () => {
+document.getElementById('btn-jogar-novamente').addEventListener('click', () => {
   emitSeguro('reiniciar_jogo');
+  jogoSelecionadoConfig = null;
+  limparAoVivo();
   mostrarTela('tela-menu');
 });
 
@@ -634,13 +885,7 @@ function renderizarTemasStop(eu){
   const cont = document.getElementById('player-stop-temas');
   const progresso = document.getElementById('player-stop-progresso');
   const aguardando = document.getElementById('player-stop-aguardando');
-
-  if(!eu){
-    cont.innerHTML = '';
-    progresso.innerHTML = '';
-    aguardando.style.display = 'none';
-    return;
-  }
+  if(!eu){ cont.innerHTML = ''; progresso.innerHTML = ''; aguardando.style.display = 'none'; return; }
 
   if(eu.votouTudo){
     cont.style.display = 'none';
@@ -660,15 +905,13 @@ function renderizarTemasStop(eu){
 
   cont.innerHTML = TEMAS.map(tema => {
     const valorAtual = eu.votoRodada ? eu.votoRodada[tema] : undefined;
-    const botoes = [10,5,0].map(v => `
-      <button class="btn-ponto-mini ${valorAtual === v ? 'selecionado' : ''}" data-tema="${tema}" data-pontos="${v}">${v}</button>
-    `).join('');
+    const botoes = [10,5,0].map(v => `<button class="btn-ponto-mini ${valorAtual === v ? 'selecionado' : ''}" data-tema="${tema}" data-pontos="${v}">${v}</button>`).join('');
     return `<div class="tema-linha"><div class="tema-nome">${tema}</div><div class="tema-botoes">${botoes}</div></div>`;
   }).join('');
 
   cont.querySelectorAll('.btn-ponto-mini').forEach(btn => {
     btn.addEventListener('click', () => {
-      const nome = getMeuNome();
+      const nome = localStorage.getItem('sb_nome_jogador');
       if(!nome) return;
       emitSeguro('marcar_ponto_stop', { nome, tema: btn.dataset.tema, pontos: Number(btn.dataset.pontos) });
     });
@@ -676,11 +919,9 @@ function renderizarTemasStop(eu){
 }
 
 document.getElementById('btn-enviar-palavra').addEventListener('click', enviarPalavra);
-document.getElementById('input-palavra').addEventListener('keydown', e => {
-  if(e.key === 'Enter') enviarPalavra();
-});
+document.getElementById('input-palavra').addEventListener('keydown', e => { if(e.key === 'Enter') enviarPalavra(); });
 function enviarPalavra(){
-  const nome = getMeuNome();
+  const nome = localStorage.getItem('sb_nome_jogador');
   if(!nome) return;
   const input = document.getElementById('input-palavra');
   const palavra = input.value.trim();
@@ -690,10 +931,10 @@ function enviarPalavra(){
 }
 
 document.getElementById('btn-bingo').addEventListener('click', () => {
-  const nome = getMeuNome();
+  const nome = localStorage.getItem('sb_nome_jogador');
   if(!nome) return;
   emitSeguro('solicitar_validacao_bingo', { nome });
-  alert('Solicitação de BINGO enviada ao administrador! 🎉');
+  toast('Solicitação de BINGO enviada ao administrador! 🎉', 'sucesso');
 });
 
 // ---------- ROLETA (canvas + luzes) ----------
@@ -721,7 +962,6 @@ function desenharRoleta(){
     ctx.strokeStyle = 'rgba(0,0,0,0.2)';
     ctx.lineWidth = 1;
     ctx.stroke();
-
     const mid = start + sliceAngle/2;
     const lx = cx + Math.cos(mid) * raio * 0.8;
     const ly = cy + Math.sin(mid) * raio * 0.8;
@@ -789,28 +1029,17 @@ function flipTexto(el, novoValor){
   if(!el) return;
   const atual = el.textContent;
   el.textContent = novoValor;
-  if(atual !== novoValor){
-    el.classList.remove('flip');
-    void el.offsetWidth;
-    el.classList.add('flip');
-  }
+  if(atual !== novoValor){ el.classList.remove('flip'); void el.offsetWidth; el.classList.add('flip'); }
 }
 function pulsarTexto(el, novoValor){
   if(!el) return;
   const atual = el.textContent;
   el.textContent = novoValor;
-  if(atual !== novoValor){
-    el.classList.remove('pulso');
-    void el.offsetWidth;
-    el.classList.add('pulso');
-  }
+  if(atual !== novoValor){ el.classList.remove('pulso'); void el.offsetWidth; el.classList.add('pulso'); }
 }
 
 // ---------- Feed de atividade ----------
-const feedItens = [];
 function adicionarAoFeed(mensagem){
-  feedItens.push(mensagem);
-  if(feedItens.length > 25) feedItens.shift();
   const feed = document.getElementById('feed-lista');
   if(!feed) return;
   const item = document.createElement('div');
@@ -824,45 +1053,67 @@ onSeguro('notificacao', (dados) => adicionarAoFeed(dados.mensagem));
 // ---------- Renderização do estado ----------
 function aplicarEstado(novoEstado){
   estado = novoEstado;
+  mostrarCodigoNoHeader(estado.codigo);
+
+  // decide a navegação inicial apenas uma vez por conexão/entrada
+  if(!telaDecidida){
+    telaDecidida = true;
+    if(estado.finalizado){
+      mostrarTela('tela-podio');
+    } else if(papelAtual === 'admin'){
+      if(estado.jogo){ jogoSelecionadoConfig = estado.jogo; prepararTelaConfig(); mostrarTela('tela-jogo'); }
+      else mostrarTela('tela-menu');
+    } else if(papelAtual === 'jogador'){
+      if(estado.jogo) mostrarTela('tela-jogo');
+      else mostrarTela('tela-aguardando');
+    }
+  } else if(papelAtual === 'jogador' && !estado.finalizado){
+    // se o admin escolheu/iniciar o jogo enquanto o jogador estava na sala de espera
+    const telaAtualId = document.querySelector('.tela.active').id;
+    if(estado.jogo && telaAtualId === 'tela-aguardando') mostrarTela('tela-jogo');
+    if(!estado.jogo && telaAtualId === 'tela-jogo') mostrarTela('tela-aguardando');
+  }
 
   flipTexto(document.getElementById('admin-letra'), estado.letraAtual || '-');
   flipTexto(document.getElementById('player-letra'), estado.letraAtual || '-');
 
   const ehStop = estado.jogo === 'stop';
-  const temaAdminTexto = ehStop ? `Rodada com ${TEMAS.length} temas` : (estado.temaAtual || '-');
-  const temaPlayerTexto = ehStop ? 'Vote em todos os temas!' : (estado.temaAtual || '-');
-  pulsarTexto(document.getElementById('admin-tema'), temaAdminTexto);
-  pulsarTexto(document.getElementById('player-tema'), temaPlayerTexto);
+  pulsarTexto(document.getElementById('admin-tema'), ehStop ? `Rodada com ${TEMAS.length} temas` : (estado.temaAtual || '-'));
+  pulsarTexto(document.getElementById('player-tema'), ehStop ? 'Vote em todos os temas!' : (estado.temaAtual || '-'));
   pulsarTexto(document.getElementById('admin-rodada'), 'Rodada ' + estado.rodada);
 
   if(estado.letraAtual && estado.letraAtual !== ultimaLetraGirada){
     ultimaLetraGirada = estado.letraAtual;
     girarPara(estado.letraAtual);
-    jaSinalizeiPronto = false; // nova rodada: preciso confirmar presença de novo
+    jaSinalizeiPronto = false;
   }
 
   document.getElementById('painel-stop-admin').style.display = ehStop ? 'block' : 'none';
   document.getElementById('painel-bingo-admin').style.display = ehStop ? 'none' : 'block';
   document.getElementById('player-stop').style.display = ehStop ? 'flex' : 'none';
   document.getElementById('player-bingo').style.display = ehStop ? 'none' : 'block';
-
   if(!ehStop){
     document.getElementById('bingo-tema-admin').textContent = estado.temaAtual || '-';
   }
+  // Mostra o controle de tema perto da roleta só no Bingo, sempre sincronizado
+  // com o tema atual da sala (evita o valor "grudar" numa escolha antiga).
+  document.getElementById('bloco-tema-bingo').style.display = ehStop ? 'none' : 'flex';
+  if(!ehStop && estado.temaAtual) selTemaAtualBingo.value = estado.temaAtual;
 
-  // lista de jogadores na config
-  const lista = document.getElementById('lista-jogadores');
-  lista.innerHTML = estado.jogadores.map((j,i) => `
+  const listaHtml = estado.jogadores.map((j,i) => `
     <li style="animation-delay:${i*0.04}s">
       <span>${j.nome}</span>
       <button data-nome="${j.nome}" class="btn-remover-jogador">✕</button>
-    </li>
-  `).join('') || '<li style="justify-content:center; color:var(--texto-fraco);">Nenhum jogador ainda</li>';
+    </li>`).join('') || '<li style="justify-content:center; color:var(--texto-fraco);">Nenhum jogador ainda</li>';
+  document.getElementById('lista-jogadores').innerHTML = listaHtml;
   document.querySelectorAll('.btn-remover-jogador').forEach(btn => {
     btn.addEventListener('click', () => emitSeguro('remover_jogador', btn.dataset.nome));
   });
 
-  // status STOP: quem já votou / está pronto
+  document.getElementById('lista-jogadores-espera').innerHTML = estado.jogadores.map((j,i) => `
+    <li style="animation-delay:${i*0.04}s"><span>🙋 ${j.nome}</span></li>
+  `).join('') || '<li style="justify-content:center; color:var(--texto-fraco);">Ninguém entrou ainda</li>';
+
   const statusStop = document.getElementById('status-stop');
   statusStop.innerHTML = estado.jogadores.map((j,i) => {
     const votados = TEMAS.filter(t => j.votoRodada && j.votoRodada[t] !== undefined).length;
@@ -877,26 +1128,21 @@ function aplicarEstado(novoEstado){
     </div>`;
   }).join('') || '<p style="color:var(--texto-fraco);">Nenhum jogador ainda</p>';
 
-  // status BINGO
   const statusBingo = document.getElementById('status-bingo');
-  statusBingo.innerHTML = estado.jogadores.map((j,i) => {
-    return `<div class="status-item" style="animation-delay:${i*0.04}s">
+  statusBingo.innerHTML = estado.jogadores.map((j,i) => `
+    <div class="status-item" style="animation-delay:${i*0.04}s">
       <div>
         <div class="nome">${j.nome}</div>
         <div class="detalhe">${j.palavras.length} palavra(s) enviada(s)</div>
       </div>
       <div class="pontos">${j.pontosBingo} pts</div>
-    </div>`;
-  }).join('') || '<p style="color:var(--texto-fraco);">Nenhum jogador ainda</p>';
+    </div>`).join('') || '<p style="color:var(--texto-fraco);">Nenhum jogador ainda</p>';
 
-  // ---- MODO JOGADOR: nome, votação e palavras ----
   const meuNome = localStorage.getItem('sb_nome_jogador');
-  document.getElementById('player-nome-atual').textContent = meuNome || '(sem nome ainda)';
-  const eu = meuNome ? estado.jogadores.find(j => j.nome === meuNome) : null;
+  const eu = meuNome ? estado.jogadores.find(j => j.nome.toLowerCase() === meuNome.toLowerCase()) : null;
 
   if(ehStop){
     renderizarTemasStop(eu);
-    // confirma presença automaticamente a cada rodada nova (sem pedir prompt de novo)
     if(meuNome && eu && !jaSinalizeiPronto){
       jaSinalizeiPronto = true;
       emitSeguro('jogador_pronto', { nome: meuNome });
@@ -905,7 +1151,7 @@ function aplicarEstado(novoEstado){
 
   const listaPalavras = document.getElementById('palavras-enviadas-player');
   if(eu && listaPalavras){
-    listaPalavras.innerHTML = eu.palavras.map(p => `<div class="palavra-chip">${p.letra}: ${p.palavra}</div>`).join('');
+    listaPalavras.innerHTML = eu.palavras.map(p => `<div class="palavra-chip">${p.tema || ''} · ${p.letra}: ${p.palavra}</div>`).join('');
   }
 }
 
@@ -913,16 +1159,14 @@ onSeguro('estado_inicial', aplicarEstado);
 onSeguro('estado_atualizado', aplicarEstado);
 
 onSeguro('bingo_valido', (dados) => {
-  const linhas = dados.detalhes.map(d => `${d.letra}: "${d.palavra}" ✅`).join('\n');
-  alert(`🎉 BINGO válido para ${dados.nome}!\n\n${linhas}\n\nPontos de Bingo: ${dados.pontosBingo}`);
+  const linhas = dados.detalhes.map(d => `<div class="linha-resultado"><span>${d.tema} · ${d.letra}</span><span>"${d.palavra}" ✅</span></div>`).join('');
+  abrirModal({ titulo: `🎉 BINGO válido — ${dados.nome}`, corpoHtml: `${linhas}<p style="margin-top:14px;">Pontos de Bingo: <strong style="color:var(--dourado);">${dados.pontosBingo}</strong></p>`, botoes: [{label:'Fechar', classe:'btn-primario'}] });
 });
 onSeguro('bingo_invalido', (dados) => {
-  const linhas = dados.detalhes.map(d => `${d.letra}: "${d.palavra}" ${d.correta ? '✅' : `❌ (esperado: ${d.esperado || '—'})`}`).join('\n');
-  alert(`❌ BINGO inválido para ${dados.nome}.\n\n${linhas}\n\nPontos de Bingo: ${dados.pontosBingo}`);
+  const linhas = dados.detalhes.map(d => `<div class="linha-resultado"><span>${d.tema} · ${d.letra}</span><span>"${d.palavra}" ${d.correta ? '✅' : `❌ (esperado: ${d.esperado || '—'})`}</span></div>`).join('');
+  abrirModal({ titulo: `❌ BINGO inválido — ${dados.nome}`, corpoHtml: `${linhas}<p style="margin-top:14px;">Pontos de Bingo: <strong style="color:var(--dourado);">${dados.pontosBingo}</strong></p>`, botoes: [{label:'Fechar', classe:'btn-perigo'}] });
 });
-onSeguro('erro_bingo', (dados) => {
-  alert('⚠️ ' + dados.mensagem);
-});
+onSeguro('erro_bingo', (dados) => toast(dados.mensagem, 'erro'));
 
 onSeguro('solicitacao_bingo', (dados) => {
   const card = document.getElementById('card-notificacoes');
@@ -930,11 +1174,10 @@ onSeguro('solicitacao_bingo', (dados) => {
   const lista = document.getElementById('notificacoes-lista');
   const item = document.createElement('div');
   item.className = 'notificacao';
-  item.innerHTML = `<span>🔔 <strong>${dados.nome}</strong> pediu BINGO!</span>
-    <button class="btn-secundario btn-validar-rapido" data-nome="${dados.nome}">Validar</button>`;
+  item.innerHTML = `<span>🔔 <strong>${dados.nome}</strong> pediu BINGO!</span><button class="btn-secundario btn-validar-rapido" data-nome="${dados.nome}">Validar</button>`;
   lista.prepend(item);
   item.querySelector('.btn-validar-rapido').addEventListener('click', () => {
-    emitSeguro('validar_bingo', dados.nome);
+    abrirModalValidarBingo(dados.nome);
     item.remove();
   });
 });
