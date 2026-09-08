@@ -128,6 +128,9 @@
   .add-jogador input{flex:1;}
   input, select{padding:12px 14px; border-radius:10px; border:1px solid var(--vidro-borda); background:rgba(255,255,255,0.05); color:var(--texto); font-size:1rem; outline:none; transition:border-color .15s ease, box-shadow .15s ease;}
   input:focus, select:focus{border-color:var(--agua); box-shadow:0 0 0 3px rgba(78,205,196,0.2);}
+  /* A lista suspensa nativa do <select> nem sempre herda o CSS escuro da página
+     (o navegador renderiza as opções com estilo próprio) — forçamos texto escuro
+     sobre fundo claro nas opções para nunca ficar "branco sobre branco". */
   select option{ color:#12121f; background:#ffffff; }
   #lista-jogadores, #lista-jogadores-espera{list-style:none; display:flex; flex-direction:column; gap:8px;}
   #lista-jogadores li, #lista-jogadores-espera li{display:flex; justify-content:space-between; align-items:center; background:rgba(255,255,255,0.05); padding:10px 14px; border-radius:10px; animation:entrarLista .35s ease backwards;}
@@ -398,7 +401,7 @@
             <div class="rodada-display" id="admin-rodada">Rodada 1</div>
           </div>
         </div>
-        <div class="letra-manual" id="bloco-tema-bingo">
+        <div class="letra-manual" id="bloco-tema-bingo" style="display:none">
           <select id="select-tema-atual-bingo"></select>
           <button class="btn-secundario" id="btn-confirmar-tema-bingo">🎯 Confirmar Tema</button>
         </div>
@@ -725,6 +728,8 @@ document.getElementById('btn-encerrar-sala-podio').addEventListener('click', con
 })();
 
 // ---------- Limpeza de "ao vivo" (feed + notificações de bingo) ----------
+// Evita que mensagens de uma partida/jogo anterior fiquem visíveis depois de
+// trocar de jogo ou começar uma partida nova na mesma sala.
 function limparAoVivo(){
   const feed = document.getElementById('feed-lista');
   if(feed) feed.innerHTML = '';
@@ -791,7 +796,9 @@ document.getElementById('btn-zerar-pontos').addEventListener('click', () => {
   abrirConfirmacao('🔄 Zerar pontos', '<p>Isso vai apagar a pontuação acumulada de todos os jogadores no Stop.</p>', 'Zerar pontos', () => emitSeguro('zerar_pontos_stop'));
 });
 
-// Controle único de tema do Bingo, ao lado da roleta
+// Controle único de tema do Bingo, ao lado da roleta — o valor exibido é
+// sempre sincronizado com o tema atual da sala (veja aplicarEstado), então
+// nunca fica "preso" num valor antigo por engano.
 const selTemaAtualBingo = document.getElementById('select-tema-atual-bingo');
 selTemaAtualBingo.innerHTML = TEMAS.map(t => `<option value="${t}">${t}</option>`).join('');
 document.getElementById('btn-confirmar-tema-bingo').addEventListener('click', () => {
@@ -1090,6 +1097,7 @@ function aplicarEstado(novoEstado){
       else mostrarTela('tela-aguardando');
     }
   } else if(papelAtual === 'jogador' && !estado.finalizado){
+    // se o admin escolheu/iniciar o jogo enquanto o jogador estava na sala de espera
     const telaAtualId = document.querySelector('.tela.active').id;
     if(estado.jogo && telaAtualId === 'tela-aguardando') mostrarTela('tela-jogo');
     if(!estado.jogo && telaAtualId === 'tela-jogo') mostrarTela('tela-aguardando');
@@ -1100,10 +1108,9 @@ function aplicarEstado(novoEstado){
   flipTexto(document.getElementById('admin-letra'), estado.letraAtual || '-');
   flipTexto(document.getElementById('player-letra'), estado.letraAtual || '-');
 
-  // Exibe o tema atual (ou "Todos os temas" se não houver)
-  const temaExibido = estado.temaAtual || 'Todos os temas';
-  pulsarTexto(document.getElementById('admin-tema'), temaExibido);
-  pulsarTexto(document.getElementById('player-tema'), temaExibido);
+  const ehStop = estado.jogo === 'stop';
+  pulsarTexto(document.getElementById('admin-tema'), ehStop ? `Rodada com ${TEMAS.length} temas` : (estado.temaAtual || '-'));
+  pulsarTexto(document.getElementById('player-tema'), ehStop ? 'Vote em todos os temas!' : (estado.temaAtual || '-'));
   pulsarTexto(document.getElementById('admin-rodada'), 'Rodada ' + estado.rodada);
 
   if(estado.letraAtual && estado.letraAtual !== ultimaLetraGirada){
@@ -1112,7 +1119,6 @@ function aplicarEstado(novoEstado){
     jaSinalizeiPronto = false;
   }
 
-  const ehStop = estado.jogo === 'stop';
   document.getElementById('painel-stop-admin').style.display = ehStop ? 'block' : 'none';
   document.getElementById('painel-bingo-admin').style.display = ehStop ? 'none' : 'block';
   document.getElementById('player-stop').style.display = ehStop ? 'flex' : 'none';
@@ -1120,8 +1126,9 @@ function aplicarEstado(novoEstado){
   if(!ehStop){
     document.getElementById('bingo-tema-admin').textContent = estado.temaAtual || '-';
   }
-  // O seletor de tema (bloco-tema-bingo) agora está sempre visível para o admin
-  // (removemos a condição que o escondia no Stop)
+  // Mostra o controle de tema perto da roleta só no Bingo, sempre sincronizado
+  // com o tema atual da sala (evita o valor "grudar" numa escolha antiga).
+  document.getElementById('bloco-tema-bingo').style.display = ehStop ? 'none' : 'flex';
   if(!ehStop && estado.temaAtual) selTemaAtualBingo.value = estado.temaAtual;
 
   const listaHtml = estado.jogadores.map((j,i) => `
