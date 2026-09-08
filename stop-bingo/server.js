@@ -1,19 +1,11 @@
 /**
- * Stop & Bingo — Servidor Node.js
- * Express serve o front-end estático, Socket.IO sincroniza o estado do jogo
- * em tempo real entre o(s) computador(es) administrador(es) e os celulares
- * dos jogadores.
+ * Stop & Bingo — Servidor Node.js (multi-sala)
  *
- * MECÂNICA DO STOP (nova):
- * - Cada rodada sorteia (ou o admin define manualmente) UMA letra.
- * - Todos os jogadores veem a letra e os 8 temas ao mesmo tempo, e votam
- *   10 / 5 / 0 em CADA tema.
- * - Assim que um jogador vota em todos os 8 temas, ele fica "completo".
- * - Quando TODOS os jogadores da partida ficam completos, o sistema soma
- *   os pontos da rodada ao total de cada um e avança sozinho para uma nova
- *   letra automaticamente.
- * - O admin também pode definir a letra manualmente (ex: usando uma roleta
- *   física em sala de aula) ou forçar o avanço da rodada a qualquer momento.
+ * Cada sala tem um código único de 5 caracteres. Quem cria a sala vira o
+ * "anfitrião" (tela de computador = painel administrador). Jogadores entram
+ * digitando nome + código da sala e caem direto no jogo pelo celular.
+ * Cada sala mantém seu próprio estado isolado, para que várias turmas/salas
+ * possam jogar ao mesmo tempo sem interferir umas nas outras.
  */
 
 const express = require('express');
@@ -47,69 +39,90 @@ const DICIONARIO = {
 
 const TEMAS = Object.keys(DICIONARIO);
 const LETRAS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+// Sem 0/O e 1/I para não confundir na hora de digitar o código.
+const CHARSET_CODIGO = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
 // ------------------------------------------------------------------
-// ESTADO GLOBAL DO JOGO
+// SALAS — cada código de sala mapeia para um estado de jogo isolado
 // ------------------------------------------------------------------
+const salas = new Map();
+
+function gerarCodigoSala() {
+  let codigo;
+  do {
+    codigo = '';
+    for (let i = 0; i < 5; i++) {
+      codigo += CHARSET_CODIGO[Math.floor(Math.random() * CHARSET_CODIGO.length)];
+    }
+  } while (salas.has(codigo));
+  return codigo;
+}
+
 function novoJogador(nome) {
   return {
     nome,
-    pontosStop: {},      // { tema: pontosAcumulados }
+    pontosStop: {},
     totalStop: 0,
-    votoRodada: {},       // { tema: 10|5|0 } — respostas da rodada ATUAL (Stop)
-    votouTudo: false,     // true quando respondeu os 8 temas da rodada atual
-    pronto: false,        // confirmou presença nesta rodada
+    votoRodada: {},
+    votouTudo: false,
+    pronto: false,
     pontosBingo: 0,
-    palavras: []          // [{letra, palavra}] pendentes de validação (Bingo)
+    palavras: []
   };
 }
 
-function estadoInicial() {
+function estadoInicial(codigo) {
   return {
-    jogo: null,           // 'stop' | 'bingo'
+    codigo,
+    jogo: null,
     jogadores: [],
-    temaAtual: TEMAS[0],   // usado apenas pelo Bingo
+    temaAtual: TEMAS[0],
     rodada: 1,
     letraAtual: null,
     finalizado: false,
-    temas: TEMAS
+    temas: TEMAS,
+    criadoEm: Date.now(),
+    ultimaAtividade: Date.now()
   };
 }
-
-let state = estadoInicial();
 
 function recalcTotalStop(jogador) {
   jogador.totalStop = Object.values(jogador.pontosStop).reduce((a, b) => a + b, 0);
 }
 
-function broadcastEstado() {
-  io.emit('estado_atualizado', state);
+function broadcastEstado(sala) {
+  io.to(sala.codigo).emit('estado_atualizado', sala);
 }
 
-function notificar(mensagem) {
-  io.emit('notificacao', { mensagem, ts: Date.now() });
+function notificar(sala, mensagem) {
+  io.to(sala.codigo).emit('notificacao', { mensagem, ts: Date.now() });
 }
 
-function encontrarJogador(nome) {
-  return state.jogadores.find(j => j.nome === nome);
+function encontrarJogador(sala, nome) {
+  return sala.jogadores.find(j => j.nome.toLowerCase() === nome.toLowerCase());
 }
 
-// Inicia uma nova rodada de Stop com a letra informada: reseta os votos e
-// o status de "pronto"/"completo" de todos os jogadores.
-function novaRodadaStop(letra) {
-  if (state.letraAtual !== null) state.rodada += 1;
-  state.letraAtual = letra;
-  state.jogadores.forEach(j => {
+// Recupera a sala do socket e marca atividade recente (evita limpeza automática).
+function obterSala(socket) {
+  const codigo = socket.data.codigo;
+  if (!codigo) return null;
+  const sala = salas.get(codigo);
+  if (sala) sala.ultimaAtividade = Date.now();
+  return sala;
+}
+
+function novaRodadaStop(sala, letra) {
+  if (sala.letraAtual !== null) sala.rodada += 1;
+  sala.letraAtual = letra;
+  sala.jogadores.forEach(j => {
     j.votoRodada = {};
     j.votouTudo = false;
     j.pronto = false;
   });
 }
 
-// Fecha a rodada atual do Stop: soma os votos de todos (quem não votou em
-// algum tema recebe 0 nele), e sorteia a próxima letra automaticamente.
-function finalizarRodadaStopEAvancar() {
-  state.jogadores.forEach(j => {
+function finalizarRodadaStopEAvancar(sala) {
+  sala.jogadores.forEach(j => {
     TEMAS.forEach(t => {
       const v = j.votoRodada[t] !== undefined ? j.votoRodada[t] : 0;
       j.pontosStop[t] = (j.pontosStop[t] || 0) + v;
@@ -117,98 +130,184 @@ function finalizarRodadaStopEAvancar() {
     recalcTotalStop(j);
   });
   const novaLetra = LETRAS[Math.floor(Math.random() * LETRAS.length)];
-  novaRodadaStop(novaLetra);
-  notificar(`🎡 Todos votaram! Nova rodada: letra ${novaLetra}`);
+  novaRodadaStop(sala, novaLetra);
+  notificar(sala, `🎡 Todos votaram! Nova rodada: letra ${novaLetra}`);
 }
 
-function verificarTodosVotaram() {
-  if (state.jogo !== 'stop') return;
-  if (state.jogadores.length === 0) return;
-  const todos = state.jogadores.every(j => j.votouTudo);
-  if (todos) finalizarRodadaStopEAvancar();
+function verificarTodosVotaram(sala) {
+  if (sala.jogo !== 'stop') return;
+  if (sala.jogadores.length === 0) return;
+  const todos = sala.jogadores.every(j => j.votouTudo);
+  if (todos) finalizarRodadaStopEAvancar(sala);
 }
 
 io.on('connection', (socket) => {
-  socket.emit('estado_inicial', state);
+  socket.data.codigo = null;
+  socket.data.papel = null;
+  socket.data.nome = null;
+
+  // ---------------- Criação / entrada em sala ----------------
+  socket.on('criar_sala', () => {
+    const codigo = gerarCodigoSala();
+    const sala = estadoInicial(codigo);
+    salas.set(codigo, sala);
+    socket.join(codigo);
+    socket.data.codigo = codigo;
+    socket.data.papel = 'admin';
+    socket.emit('sala_criada', { codigo });
+    socket.emit('estado_atualizado', sala);
+  });
+
+  socket.on('reconectar_admin', (codigo) => {
+    codigo = (codigo || '').toString().trim().toUpperCase();
+    const sala = salas.get(codigo);
+    if (!sala) {
+      socket.emit('erro_sala', { mensagem: 'Essa sala não existe mais (o servidor pode ter reiniciado).' });
+      return;
+    }
+    socket.join(codigo);
+    socket.data.codigo = codigo;
+    socket.data.papel = 'admin';
+    sala.ultimaAtividade = Date.now();
+    socket.emit('sala_criada', { codigo });
+    socket.emit('estado_atualizado', sala);
+  });
+
+  socket.on('entrar_sala', ({ codigo, nome }) => {
+    codigo = (codigo || '').toString().trim().toUpperCase();
+    nome = (nome || '').toString().trim().slice(0, 20);
+    const sala = salas.get(codigo);
+    if (!sala) {
+      socket.emit('erro_sala', { mensagem: 'Código de sala inválido ou sala expirada. Confira com o anfitrião.' });
+      return;
+    }
+    if (!nome) {
+      socket.emit('erro_sala', { mensagem: 'Digite um nome válido para entrar.' });
+      return;
+    }
+    let jogador = encontrarJogador(sala, nome);
+    if (!jogador) {
+      jogador = novoJogador(nome);
+      // Se entrar no meio de uma rodada de Stop já em andamento, não trava
+      // a rodada atual esperando o voto de quem acabou de chegar.
+      if (sala.jogo === 'stop' && sala.letraAtual !== null) {
+        jogador.votouTudo = true;
+        jogador.pronto = true;
+      }
+      sala.jogadores.push(jogador);
+      notificar(sala, `🙋 <b>${jogador.nome}</b> entrou na sala!`);
+    }
+    socket.join(codigo);
+    socket.data.codigo = codigo;
+    socket.data.papel = 'jogador';
+    socket.data.nome = jogador.nome;
+    sala.ultimaAtividade = Date.now();
+    socket.emit('sala_entrada_ok', { codigo, nome: jogador.nome });
+    broadcastEstado(sala);
+  });
+
+  socket.on('encerrar_sala', () => {
+    const sala = obterSala(socket);
+    if (!sala) return;
+    io.to(sala.codigo).emit('sala_encerrada');
+    salas.delete(sala.codigo);
+  });
 
   // ---------------- Config / geral ----------------
   socket.on('set_jogo', (tipo) => {
+    const sala = obterSala(socket);
+    if (!sala) return;
     if (tipo !== 'stop' && tipo !== 'bingo') return;
-    state.jogo = tipo;
-    broadcastEstado();
+    sala.jogo = tipo;
+    broadcastEstado(sala);
   });
 
   socket.on('adicionar_jogador', (nome) => {
-    nome = (nome || '').toString().trim();
+    const sala = obterSala(socket);
+    if (!sala) return;
+    nome = (nome || '').toString().trim().slice(0, 20);
     if (!nome) return;
-    if (encontrarJogador(nome)) return;
-    state.jogadores.push(novoJogador(nome));
-    broadcastEstado();
+    if (encontrarJogador(sala, nome)) return;
+    const jogador = novoJogador(nome);
+    if (sala.jogo === 'stop' && sala.letraAtual !== null) {
+      jogador.votouTudo = true;
+      jogador.pronto = true;
+    }
+    sala.jogadores.push(jogador);
+    broadcastEstado(sala);
   });
 
   socket.on('remover_jogador', (nome) => {
-    state.jogadores = state.jogadores.filter(j => j.nome !== nome);
-    broadcastEstado();
-    verificarTodosVotaram();
-    if (state.jogadores.length) broadcastEstado();
+    const sala = obterSala(socket);
+    if (!sala) return;
+    sala.jogadores = sala.jogadores.filter(j => j.nome !== nome);
+    broadcastEstado(sala);
+    verificarTodosVotaram(sala);
+    broadcastEstado(sala);
   });
 
-  // Sorteia uma letra aleatória (roleta virtual). No Stop, isso sempre
-  // inicia uma rodada nova (zera votos de todos).
   socket.on('girar_roleta', () => {
+    const sala = obterSala(socket);
+    if (!sala) return;
     const letra = LETRAS[Math.floor(Math.random() * LETRAS.length)];
-    if (state.jogo === 'stop') {
-      novaRodadaStop(letra);
-      notificar(`🎲 Nova rodada sorteada: letra ${letra}`);
+    if (sala.jogo === 'stop') {
+      novaRodadaStop(sala, letra);
+      notificar(sala, `🎲 Nova rodada sorteada: letra ${letra}`);
     } else {
-      state.letraAtual = letra;
+      sala.letraAtual = letra;
     }
-    broadcastEstado();
+    broadcastEstado(sala);
   });
 
-  // Define a letra manualmente (ex: usando uma roleta física em sala de aula).
   socket.on('definir_letra_manual', (letra) => {
+    const sala = obterSala(socket);
+    if (!sala) return;
     letra = (letra || '').toString().trim().toUpperCase();
     if (!LETRAS.includes(letra)) return;
-    if (state.jogo === 'stop') {
-      novaRodadaStop(letra);
-      notificar(`📍 Letra definida manualmente: ${letra}`);
+    if (sala.jogo === 'stop') {
+      novaRodadaStop(sala, letra);
+      notificar(sala, `📍 Letra definida manualmente: ${letra}`);
     } else {
-      state.letraAtual = letra;
+      sala.letraAtual = letra;
     }
-    broadcastEstado();
+    broadcastEstado(sala);
   });
 
   socket.on('zerar_pontos_stop', () => {
-    state.jogadores.forEach(j => {
+    const sala = obterSala(socket);
+    if (!sala) return;
+    sala.jogadores.forEach(j => {
       j.pontosStop = {};
       j.totalStop = 0;
       j.votoRodada = {};
       j.votouTudo = false;
     });
-    notificar('🔄 Pontuações do Stop foram zeradas.');
-    broadcastEstado();
+    notificar(sala, '🔄 Pontuações do Stop foram zeradas.');
+    broadcastEstado(sala);
   });
 
-  // Força o fim da rodada mesmo que nem todos tenham votado (quem não
-  // votou recebe 0 nos temas pendentes) — útil se alguém travar/sumir.
   socket.on('forcar_proxima_rodada_stop', () => {
-    if (state.jogo !== 'stop') return;
-    finalizarRodadaStopEAvancar();
-    broadcastEstado();
+    const sala = obterSala(socket);
+    if (!sala || sala.jogo !== 'stop') return;
+    finalizarRodadaStopEAvancar(sala);
+    broadcastEstado(sala);
   });
 
   socket.on('set_tema_bingo', (tema) => {
+    const sala = obterSala(socket);
+    if (!sala) return;
     if (!TEMAS.includes(tema)) return;
-    state.temaAtual = tema;
-    broadcastEstado();
+    sala.temaAtual = tema;
+    broadcastEstado(sala);
   });
 
   socket.on('finalizar_jogo', () => {
-    state.finalizado = true;
-    const ranking = [...state.jogadores].sort((a, b) => {
-      const pa = state.jogo === 'stop' ? a.totalStop : a.pontosBingo;
-      const pb = state.jogo === 'stop' ? b.totalStop : b.pontosBingo;
+    const sala = obterSala(socket);
+    if (!sala) return;
+    sala.finalizado = true;
+    const ranking = [...sala.jogadores].sort((a, b) => {
+      const pa = sala.jogo === 'stop' ? a.totalStop : a.pontosBingo;
+      const pb = sala.jogo === 'stop' ? b.totalStop : b.pontosBingo;
       return pb - pa;
     }).map(j => ({
       nome: j.nome,
@@ -216,28 +315,49 @@ io.on('connection', (socket) => {
       pontosBingo: j.pontosBingo,
       pontosStop: j.pontosStop
     }));
-    io.emit('jogo_finalizado', { jogo: state.jogo, ranking });
-    broadcastEstado();
+    io.to(sala.codigo).emit('jogo_finalizado', { jogo: sala.jogo, ranking });
+    broadcastEstado(sala);
   });
 
+  // Reinicia o JOGO mas mantém a sala e os jogadores conectados, para dar
+  // pra jogar várias partidas seguidas sem precisar reentrar com o código.
   socket.on('reiniciar_jogo', () => {
-    state = estadoInicial();
-    broadcastEstado();
+    const sala = obterSala(socket);
+    if (!sala) return;
+    sala.jogo = null;
+    sala.temaAtual = TEMAS[0];
+    sala.rodada = 1;
+    sala.letraAtual = null;
+    sala.finalizado = false;
+    sala.jogadores.forEach(j => {
+      j.pontosStop = {};
+      j.totalStop = 0;
+      j.votoRodada = {};
+      j.votouTudo = false;
+      j.pronto = false;
+      j.pontosBingo = 0;
+      j.palavras = [];
+    });
+    broadcastEstado(sala);
   });
 
   // ---------------- Stop: votação ----------------
   socket.on('jogador_pronto', ({ nome }) => {
-    const j = encontrarJogador(nome);
+    const sala = obterSala(socket);
+    if (!sala) return;
+    const j = encontrarJogador(sala, nome);
     if (!j) return;
     if (!j.pronto) {
       j.pronto = true;
-      notificar(`🙋 ${j.nome} está pronto(a) para a rodada!`);
-      broadcastEstado();
+      notificar(sala, `🙋 <b>${j.nome}</b> está pronto(a) para a rodada!`);
+      broadcastEstado(sala);
     }
   });
 
   socket.on('marcar_ponto_stop', ({ nome, tema, pontos }) => {
-    const j = encontrarJogador(nome);
+    const sala = obterSala(socket);
+    if (!sala) return;
+    const j = encontrarJogador(sala, nome);
     if (!j || !TEMAS.includes(tema)) return;
     pontos = Number(pontos);
     if (![10, 5, 0].includes(pontos)) return;
@@ -246,75 +366,112 @@ io.on('connection', (socket) => {
     const completou = TEMAS.every(t => j.votoRodada[t] !== undefined);
     if (completou && !j.votouTudo) {
       j.votouTudo = true;
-      notificar(`✅ ${j.nome} terminou de votar nesta rodada!`);
+      notificar(sala, `✅ <b>${j.nome}</b> terminou de votar nesta rodada!`);
     }
-    broadcastEstado();
-    verificarTodosVotaram();
+    broadcastEstado(sala);
+    verificarTodosVotaram(sala);
   });
 
   // ---------------- Bingo ----------------
   socket.on('enviar_palavra_bingo', ({ nome, palavra }) => {
-    const j = encontrarJogador(nome);
-    if (!j || !state.letraAtual || !palavra) return;
+    const sala = obterSala(socket);
+    if (!sala) return;
+    const j = encontrarJogador(sala, nome);
+    if (!j || !sala.letraAtual || !palavra) return;
     palavra = palavra.toString().trim();
     if (!palavra) return;
-    const idx = j.palavras.findIndex(p => p.letra === state.letraAtual);
-    const entrada = { letra: state.letraAtual, palavra };
+    // Guarda o TEMA que estava ativo no momento do envio junto com a palavra,
+    // para que trocar o tema depois não bagunce a validação de palavras antigas.
+    const idx = j.palavras.findIndex(p => p.letra === sala.letraAtual && p.tema === sala.temaAtual);
+    const entrada = { tema: sala.temaAtual, letra: sala.letraAtual, palavra };
     if (idx >= 0) j.palavras[idx] = entrada;
     else j.palavras.push(entrada);
-    notificar(`📝 ${j.nome} enviou uma palavra para a letra ${state.letraAtual}`);
-    broadcastEstado();
+    notificar(sala, `📝 <b>${j.nome}</b> enviou uma palavra para ${sala.temaAtual} / letra ${sala.letraAtual}`);
+    broadcastEstado(sala);
   });
 
   socket.on('limpar_palavras_bingo', () => {
-    state.jogadores.forEach(j => { j.palavras = []; });
-    notificar('🗑️ Palavras do Bingo foram limpas.');
-    broadcastEstado();
+    const sala = obterSala(socket);
+    if (!sala) return;
+    sala.jogadores.forEach(j => { j.palavras = []; });
+    notificar(sala, '🗑️ Palavras do Bingo foram limpas.');
+    broadcastEstado(sala);
   });
 
   socket.on('solicitar_validacao_bingo', ({ nome }) => {
-    notificar(`🎰 ${nome} pediu BINGO!`);
-    io.emit('solicitacao_bingo', { nome });
+    const sala = obterSala(socket);
+    if (!sala) return;
+    notificar(sala, `🎰 <b>${nome}</b> pediu BINGO!`);
+    io.to(sala.codigo).emit('solicitacao_bingo', { nome });
   });
 
-  socket.on('validar_bingo', (nome) => {
-    const j = encontrarJogador(nome);
+  // Validação manual e editável: o admin manda uma lista de entradas
+  // {tema, letra, palavra} — pode vir pré-preenchida com o que o jogador
+  // enviou pelo celular, mas o admin pode editar, remover ou adicionar
+  // linhas à mão antes de validar (útil quando o jogo é conduzido de forma
+  // mais livre, por exemplo com uma roleta física em sala de aula).
+  socket.on('validar_bingo', ({ nome, entradas }) => {
+    const sala = obterSala(socket);
+    if (!sala) return;
+    const j = encontrarJogador(sala, nome);
     if (!j) {
       socket.emit('erro_bingo', { mensagem: `Jogador "${nome}" não encontrado.` });
       return;
     }
-    const dicionarioTema = DICIONARIO[state.temaAtual];
-    if (!dicionarioTema) {
-      socket.emit('erro_bingo', { mensagem: 'Tema atual inválido.' });
-      return;
-    }
-    if (j.palavras.length === 0) {
-      socket.emit('erro_bingo', { mensagem: `${j.nome} ainda não enviou nenhuma palavra.` });
+    entradas = Array.isArray(entradas) ? entradas : [];
+    entradas = entradas
+      .map(e => ({
+        tema: (e && e.tema || '').toString(),
+        letra: (e && e.letra || '').toString().toUpperCase(),
+        palavra: (e && e.palavra || '').toString().trim()
+      }))
+      .filter(e => TEMAS.includes(e.tema) && LETRAS.includes(e.letra) && e.palavra);
+
+    if (entradas.length === 0) {
+      socket.emit('erro_bingo', { mensagem: `Nenhuma palavra válida para validar de ${j.nome}.` });
       return;
     }
 
-    const detalhes = j.palavras.map(p => {
-      const esperado = dicionarioTema[p.letra] || null;
-      const correta = !!esperado && esperado.toLowerCase() === p.palavra.toLowerCase();
-      return { letra: p.letra, palavra: p.palavra, esperado, correta };
+    const detalhes = entradas.map(e => {
+      const dicionarioTema = DICIONARIO[e.tema];
+      const esperado = dicionarioTema ? (dicionarioTema[e.letra] || null) : null;
+      const correta = !!esperado && esperado.toLowerCase() === e.palavra.toLowerCase();
+      return { tema: e.tema, letra: e.letra, palavra: e.palavra, esperado, correta };
     });
 
     const todasCorretas = detalhes.every(d => d.correta);
 
     if (todasCorretas) {
       j.pontosBingo += 1;
-      notificar(`🎉 BINGO válido de ${j.nome}!`);
-      io.emit('bingo_valido', { nome: j.nome, detalhes, pontosBingo: j.pontosBingo });
+      notificar(sala, `🎉 BINGO válido de <b>${j.nome}</b>!`);
+      io.to(sala.codigo).emit('bingo_valido', { nome: j.nome, detalhes, pontosBingo: j.pontosBingo });
     } else {
       j.pontosBingo = Math.max(0, j.pontosBingo - 1);
-      notificar(`❌ BINGO inválido de ${j.nome}.`);
-      io.emit('bingo_invalido', { nome: j.nome, detalhes, pontosBingo: j.pontosBingo });
+      notificar(sala, `❌ BINGO inválido de <b>${j.nome}</b>.`);
+      io.to(sala.codigo).emit('bingo_invalido', { nome: j.nome, detalhes, pontosBingo: j.pontosBingo });
     }
 
     j.palavras = [];
-    broadcastEstado();
+    broadcastEstado(sala);
+  });
+
+  socket.on('disconnect', () => {
+    // A sala continua existindo em memória — quem cair consegue reconectar
+    // com o mesmo código (admin) ou mesmo nome + código (jogador).
   });
 });
+
+// Limpeza periódica: remove salas sem nenhuma atividade há muitas horas,
+// para não acumular memória indefinidamente em um servidor de longa duração.
+const LIMITE_INATIVIDADE_MS = 6 * 60 * 60 * 1000; // 6 horas
+setInterval(() => {
+  const agora = Date.now();
+  for (const [codigo, sala] of salas) {
+    if (agora - sala.ultimaAtividade > LIMITE_INATIVIDADE_MS) {
+      salas.delete(codigo);
+    }
+  }
+}, 30 * 60 * 1000); // checa a cada 30 minutos
 
 server.listen(PORT, () => {
   console.log(`🎉 Stop & Bingo rodando na porta ${PORT}`);
