@@ -81,6 +81,7 @@ function estadoInicial(codigo) {
     letraAtual: null,
     finalizado: false,
     temas: TEMAS,
+    historico: [],   // [{letra, tema}] — tema é null no Stop (todos os temas valem por rodada)
     criadoEm: Date.now(),
     ultimaAtividade: Date.now()
   };
@@ -102,6 +103,16 @@ function encontrarJogador(sala, nome) {
   return sala.jogadores.find(j => j.nome.toLowerCase() === nome.toLowerCase());
 }
 
+// Registra uma combinação de letra (+ tema, no Bingo) no histórico da sala,
+// para acompanhamento — evita duplicar a mesma combinação em sequência.
+function registrarHistorico(sala, letra, tema) {
+  tema = tema || null;
+  const ultimo = sala.historico[sala.historico.length - 1];
+  if (ultimo && ultimo.letra === letra && ultimo.tema === tema) return;
+  sala.historico.push({ letra, tema });
+  if (sala.historico.length > 200) sala.historico.shift();
+}
+
 // Recupera a sala do socket e marca atividade recente (evita limpeza automática).
 function obterSala(socket) {
   const codigo = socket.data.codigo;
@@ -119,6 +130,7 @@ function novaRodadaStop(sala, letra) {
     j.votouTudo = false;
     j.pronto = false;
   });
+  registrarHistorico(sala, letra, null);
 }
 
 function finalizarRodadaStopEAvancar(sala) {
@@ -218,7 +230,24 @@ io.on('connection', (socket) => {
     const sala = obterSala(socket);
     if (!sala) return;
     if (tipo !== 'stop' && tipo !== 'bingo') return;
-    sala.jogo = tipo;
+    // Trocar de jogo começa uma partida do zero (evita levar rodada, letra,
+    // histórico ou pontuação de um jogo pro outro).
+    if (sala.jogo !== tipo) {
+      sala.jogo = tipo;
+      sala.temaAtual = TEMAS[0];
+      sala.rodada = 1;
+      sala.letraAtual = null;
+      sala.historico = [];
+      sala.jogadores.forEach(j => {
+        j.pontosStop = {};
+        j.totalStop = 0;
+        j.votoRodada = {};
+        j.votouTudo = false;
+        j.pronto = false;
+        j.pontosBingo = 0;
+        j.palavras = [];
+      });
+    }
     broadcastEstado(sala);
   });
 
@@ -255,6 +284,7 @@ io.on('connection', (socket) => {
       notificar(sala, `🎲 Nova rodada sorteada: letra ${letra}`);
     } else {
       sala.letraAtual = letra;
+      registrarHistorico(sala, letra, sala.temaAtual);
     }
     broadcastEstado(sala);
   });
@@ -269,6 +299,7 @@ io.on('connection', (socket) => {
       notificar(sala, `📍 Letra definida manualmente: ${letra}`);
     } else {
       sala.letraAtual = letra;
+      registrarHistorico(sala, letra, sala.temaAtual);
     }
     broadcastEstado(sala);
   });
@@ -298,8 +329,12 @@ io.on('connection', (socket) => {
     if (!sala) return;
     if (!TEMAS.includes(tema)) return;
     sala.temaAtual = tema;
+    if (sala.jogo === 'bingo' && sala.letraAtual) {
+      registrarHistorico(sala, sala.letraAtual, tema);
+    }
     broadcastEstado(sala);
   });
+
 
   socket.on('finalizar_jogo', () => {
     const sala = obterSala(socket);
@@ -329,6 +364,7 @@ io.on('connection', (socket) => {
     sala.rodada = 1;
     sala.letraAtual = null;
     sala.finalizado = false;
+    sala.historico = [];
     sala.jogadores.forEach(j => {
       j.pontosStop = {};
       j.totalStop = 0;
