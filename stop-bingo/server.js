@@ -76,7 +76,7 @@ function estadoInicial(codigo) {
     codigo,
     jogo: null,
     jogadores: [],
-    temaAtual: TEMAS[0],     // <-- Tema inicial (agora presente em todas as salas)
+    temaAtual: TEMAS[0],
     rodada: 1,
     letraAtual: null,
     finalizado: false,
@@ -200,6 +200,8 @@ io.on('connection', (socket) => {
     let jogador = encontrarJogador(sala, nome);
     if (!jogador) {
       jogador = novoJogador(nome);
+      // Se entrar no meio de uma rodada de Stop já em andamento, não trava
+      // a rodada atual esperando o voto de quem acabou de chegar.
       if (sala.jogo === 'stop' && sala.letraAtual !== null) {
         jogador.votouTudo = true;
         jogador.pronto = true;
@@ -228,6 +230,8 @@ io.on('connection', (socket) => {
     const sala = obterSala(socket);
     if (!sala) return;
     if (tipo !== 'stop' && tipo !== 'bingo') return;
+    // Trocar de jogo começa uma partida do zero (evita levar rodada, letra,
+    // histórico ou pontuação de um jogo pro outro).
     if (sala.jogo !== tipo) {
       sala.jogo = tipo;
       sala.temaAtual = TEMAS[0];
@@ -320,18 +324,17 @@ io.on('connection', (socket) => {
     broadcastEstado(sala);
   });
 
-  // ---------- TEMA: agora funciona para QUALQUER jogo ----------
   socket.on('set_tema_bingo', (tema) => {
     const sala = obterSala(socket);
     if (!sala) return;
     if (!TEMAS.includes(tema)) return;
     sala.temaAtual = tema;
-    // Só registra no histórico se for Bingo (para não poluir o histórico do Stop)
     if (sala.jogo === 'bingo' && sala.letraAtual) {
       registrarHistorico(sala, sala.letraAtual, tema);
     }
     broadcastEstado(sala);
   });
+
 
   socket.on('finalizar_jogo', () => {
     const sala = obterSala(socket);
@@ -351,6 +354,8 @@ io.on('connection', (socket) => {
     broadcastEstado(sala);
   });
 
+  // Reinicia o JOGO mas mantém a sala e os jogadores conectados, para dar
+  // pra jogar várias partidas seguidas sem precisar reentrar com o código.
   socket.on('reiniciar_jogo', () => {
     const sala = obterSala(socket);
     if (!sala) return;
@@ -411,6 +416,8 @@ io.on('connection', (socket) => {
     if (!j || !sala.letraAtual || !palavra) return;
     palavra = palavra.toString().trim();
     if (!palavra) return;
+    // Guarda o TEMA que estava ativo no momento do envio junto com a palavra,
+    // para que trocar o tema depois não bagunce a validação de palavras antigas.
     const idx = j.palavras.findIndex(p => p.letra === sala.letraAtual && p.tema === sala.temaAtual);
     const entrada = { tema: sala.temaAtual, letra: sala.letraAtual, palavra };
     if (idx >= 0) j.palavras[idx] = entrada;
@@ -434,6 +441,11 @@ io.on('connection', (socket) => {
     io.to(sala.codigo).emit('solicitacao_bingo', { nome });
   });
 
+  // Validação manual e editável: o admin manda uma lista de entradas
+  // {tema, letra, palavra} — pode vir pré-preenchida com o que o jogador
+  // enviou pelo celular, mas o admin pode editar, remover ou adicionar
+  // linhas à mão antes de validar (útil quando o jogo é conduzido de forma
+  // mais livre, por exemplo com uma roleta física em sala de aula).
   socket.on('validar_bingo', ({ nome, entradas }) => {
     const sala = obterSala(socket);
     if (!sala) return;
