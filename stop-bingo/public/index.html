@@ -198,6 +198,14 @@
   .feed-lista{display:flex; flex-direction:column-reverse; gap:6px; max-height:180px; overflow-y:auto;}
   .feed-item{font-size:0.85rem; color:var(--texto-fraco); background:rgba(255,255,255,0.04); padding:6px 10px; border-radius:8px; animation:entrarLista .3s ease;}
   .feed-item b{color:var(--texto);}
+  .historico-chips{display:flex; flex-wrap:wrap; gap:8px; max-height:130px; overflow-y:auto;}
+  .chip-historico{
+    background:var(--vidro); border:1px solid var(--vidro-borda); border-radius:20px;
+    padding:6px 14px; font-size:0.82rem; font-weight:700; color:var(--texto-fraco);
+    white-space:nowrap; animation:entrarLista .3s ease backwards;
+  }
+  .chip-historico.atual{border-color:var(--dourado); background:rgba(255,215,0,0.15); color:var(--dourado);}
+  .historico-vazio{color:var(--texto-fraco); font-size:0.85rem;}
 
   /* ---------- Modo Jogador ---------- */
   .player-view{flex:1; display:flex; flex-direction:column; align-items:center; gap:16px; padding:20px; text-align:center; overflow-y:auto;}
@@ -440,6 +448,11 @@
         </div>
 
         <div class="card">
+          <h3>🕓 Histórico da partida</h3>
+          <div class="historico-chips" id="historico-lista-admin"></div>
+        </div>
+
+        <div class="card">
           <h3>📣 Atividade ao vivo</h3>
           <div class="feed-lista" id="feed-lista"></div>
         </div>
@@ -453,6 +466,7 @@
     <div class="player-view">
       <div class="perspectiva-letra"><div class="letra-display-player" id="player-letra">-</div></div>
       <div class="tema-display-player" id="player-tema">-</div>
+      <div class="historico-chips" id="historico-lista-player"></div>
 
       <div id="player-stop" style="display:none; width:100%; flex-direction:column; align-items:center; gap:14px;">
         <div id="player-stop-progresso"></div>
@@ -1038,6 +1052,21 @@ function pulsarTexto(el, novoValor){
   if(atual !== novoValor){ el.classList.remove('pulso'); void el.offsetWidth; el.classList.add('pulso'); }
 }
 
+// ---------- Histórico de letras (+ tema, no Bingo) ----------
+function renderizarHistorico(){
+  const historico = (estado && estado.historico) || [];
+  const ehStop = estado && estado.jogo === 'stop';
+  const html = historico.map((h, i) => {
+    const atual = i === historico.length - 1;
+    const texto = (ehStop || !h.tema) ? h.letra : `${h.tema} · ${h.letra}`;
+    return `<span class="chip-historico ${atual ? 'atual' : ''}" style="animation-delay:${Math.min(i,15)*0.03}s">${texto}</span>`;
+  }).join('') || '<span class="historico-vazio">Nenhuma letra sorteada ainda.</span>';
+  const adminEl = document.getElementById('historico-lista-admin');
+  if(adminEl) adminEl.innerHTML = html;
+  const playerEl = document.getElementById('historico-lista-player');
+  if(playerEl) playerEl.innerHTML = html;
+}
+
 // ---------- Feed de atividade ----------
 function adicionarAoFeed(mensagem){
   const feed = document.getElementById('feed-lista');
@@ -1073,6 +1102,8 @@ function aplicarEstado(novoEstado){
     if(estado.jogo && telaAtualId === 'tela-aguardando') mostrarTela('tela-jogo');
     if(!estado.jogo && telaAtualId === 'tela-jogo') mostrarTela('tela-aguardando');
   }
+
+  renderizarHistorico();
 
   flipTexto(document.getElementById('admin-letra'), estado.letraAtual || '-');
   flipTexto(document.getElementById('player-letra'), estado.letraAtual || '-');
